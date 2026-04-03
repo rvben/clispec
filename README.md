@@ -1,10 +1,25 @@
-# Agent-First CLI Design
+# The CLI Spec
 
-**A specification for building CLI tools that work equally well for humans and AI agents.**
+**7 principles for building CLI tools that work for humans, scripts, and AI agents.**
 
-Most CLI tools were designed for human eyeballs: colored tables, prose error messages, interactive prompts. AI agents need structured output, predictable behavior, and machine-readable introspection. The solution is not to choose one audience over the other. It is to design for both simultaneously.
+Version 0.1 — April 2026
 
-This is a living specification. Contributions welcome via [issues](https://github.com/rvben/agent-first-cli/issues) and pull requests.
+---
+
+Most CLI tools were designed for human operators: colored tables, prose error messages, interactive prompts. AI agents are now a primary consumer of CLI tools, and they need structured output, predictable behavior, and machine-readable introspection.
+
+The solution is not to choose one audience over the other. Design for both simultaneously.
+
+Agents are not trusted operators. They hallucinate inputs, retry unpredictably, and cannot respond to interactive prompts. A well-designed CLI handles all of this gracefully — and in doing so, becomes better for humans and scripts too.
+
+| # | Principle | In one sentence |
+|---|-----------|----------------|
+| 1 | [Structured Output](#1-structured-output) | Emit machine-readable data by default when piped, human-friendly output in a terminal. |
+| 2 | [Schema Introspection](#2-schema-introspection) | Let consumers discover commands, arguments, output fields, and error types at runtime. |
+| 3 | [Stderr/Stdout Separation](#3-stderrstdout-separation) | Data goes to stdout, everything else to stderr. |
+| 4 | [Non-Interactive by Default](#4-non-interactive-by-default) | Never block on input without a TTY. |
+| 5 | [Idempotent Operations](#5-idempotent-operations) | Repeated commands produce the same result without side effects. |
+| 6 | [Bounded Output](#6-bounded-output) | Let consumers control the volume and shape of output. |
 
 ---
 
@@ -12,11 +27,7 @@ This is a living specification. Contributions welcome via [issues](https://githu
 
 ### 1. Structured Output
 
-Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped or when `--json` is passed, emit structured data. Use `isatty()` to auto-detect.
-
-JSON is the default structured format due to universal tooling support (`jq`, every programming language). However, JSON is not always optimal for LLM consumption — Markdown uses 34-38% fewer tokens, YAML offers better accuracy for nested data. Consider supporting `--format` for alternatives when your consumers are primarily LLMs rather than scripts.
-
-On failure, emit a structured error to stderr with a machine-readable `kind` field and exit non-zero. The `kind` field gives consumers the semantics — the exit code just signals pass/fail.
+Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped or when `--json` is passed, emit JSON. Use `isatty()` to auto-detect.
 
 ```bash
 # DO: Auto-detect output format
@@ -34,31 +45,41 @@ $ mytool list | jq '.[] | select(.status == "running")'
 ```
 
 ```bash
-# DO: Structured errors with a kind field
-$ mytool connect --profile staging 2>&1
-{"ok": false, "error": {"kind": "auth", "message": "Token expired for profile 'staging'"}}
+# DON'T: Force consumers to parse tables
+$ mytool list --format=table  # only option
+NAME        STATUS    UPTIME
+web-01      running   14d 3h
+```
 
-# Agents branch on kind, not exit codes:
-#   "auth"      → refresh credentials
-#   "not_found" → don't retry
-#   "timeout"   → retry with backoff
+On failure, emit a structured error to stderr and exit non-zero. Include a machine-readable `kind` field so consumers can branch on the failure type without parsing the message.
+
+```bash
+# DO: Structured errors on stderr
+$ mytool connect --profile staging
+# stderr: {"error": {"kind": "auth", "message": "Token expired for profile 'staging'"}}
+# exit code: 1
 ```
 
 ```bash
-# DON'T: Force agents to parse tables or prose errors
-$ mytool list --format=table  # only option
+# DON'T: Prose-only errors
 $ mytool connect --profile staging
-Error: something went wrong  # exit 1 — what kind of error?
+Error: something went wrong  # what kind? Consumer has no idea.
 ```
 
 ### 2. Schema Introspection
 
-Provide a `schema` command that outputs a machine-readable description of all commands, their arguments, types, and output fields. Agents should never need to parse `--help` text to discover a tool's capabilities.
+Provide a `schema` command that outputs a machine-readable description of the tool's capabilities. Agents should never need to parse `--help` text to discover what a tool can do.
 
-For context that schema cannot capture — workflows, gotchas, security boundaries — ship companion files alongside your tool. `CONTEXT.md`, `SKILL.md`, or `AGENTS.md` give agents the operational knowledge they need without polluting `--help` output.
+A useful schema includes:
+
+- **Commands** with descriptions
+- **Arguments** with types, defaults, and whether they are required
+- **Output fields** with types — so consumers know the shape of the response without calling the command
+- **Error kinds** — the finite set of `kind` values the tool emits, so consumers can write exhaustive handlers
+- **Mutation markers** — which commands are read-only and which modify state
 
 ```bash
-# DO: Machine-readable schema
+# DO: Comprehensive machine-readable schema
 $ mytool schema
 {
   "name": "mytool",
@@ -67,10 +88,24 @@ $ mytool schema
     {
       "name": "list",
       "description": "List all services",
+      "mutating": false,
       "args": [
-        {"name": "--status", "type": "string", "enum": ["running", "stopped", "all"]}
+        {"name": "--status", "type": "string", "required": false,
+         "enum": ["running", "stopped", "all"], "default": "all"},
+        {"name": "--limit", "type": "integer", "required": false, "default": 100}
+      ],
+      "output_fields": [
+        {"name": "name", "type": "string"},
+        {"name": "status", "type": "string"},
+        {"name": "uptime_seconds", "type": "integer | null"}
       ]
     }
+  ],
+  "errors": [
+    {"kind": "auth", "retryable": false, "description": "Authentication failed"},
+    {"kind": "not_found", "retryable": false, "description": "Resource does not exist"},
+    {"kind": "timeout", "retryable": true, "description": "Request timed out"},
+    {"kind": "rate_limit", "retryable": true, "description": "Too many requests"}
   ]
 }
 ```
@@ -80,14 +115,16 @@ $ mytool schema
 $ mytool list --help
 Usage: mytool list [options]
   Lists services. Use --status to filter.
-# Agents must regex-parse this to discover capabilities
+# Consumers must regex-parse this to discover capabilities
 ```
+
+For context that schema cannot capture — workflows, security boundaries, operational guidance — ship companion files alongside your tool (`CONTEXT.md`, `SKILL.md`, or `AGENTS.md`).
 
 ### 3. Stderr/Stdout Separation
 
 Data goes to stdout. Messages, progress indicators, and diagnostics go to stderr. Never mix human-readable messages into the data stream.
 
-This applies in every output mode, not just `--json`. Even human-readable table data should go to stdout, and "No results found" messages to stderr. An agent piping your output to `jq` should never get a progress message in the JSON.
+This applies in every output mode, not just `--json`. An agent piping your output to `jq` should never get a progress message in the JSON.
 
 ```bash
 # DO: Clean separation
@@ -110,7 +147,7 @@ parse error: Invalid literal at line 1, column 1
 
 All commands must work without a TTY. Interactive prompts should only appear when stdin is a terminal. Provide flag alternatives for every interactive input.
 
-This is a hard requirement, not a convenience. An agent cannot type "y" at a confirmation prompt. If your CLI hangs waiting for input that will never come, the agent's workflow is dead.
+An agent cannot type "y" at a confirmation prompt. If your CLI blocks waiting for input that will never come, the agent is stuck.
 
 ```bash
 # DO: Work in both modes
@@ -123,14 +160,18 @@ $ mytool delete vm-01 --yes             # Scripted: no prompt
 ```bash
 # DON'T: Block on input without a TTY
 $ echo '{}' | mytool login
-Password: ^C  # Hangs waiting for input that will never come
+Password: ^C  # Hangs forever
 ```
+
+For destructive operations, consider supporting `--dry-run` with structured output so consumers can preview changes before committing.
 
 ### 5. Idempotent Operations
 
-Commands that can be safely re-run should be. Starting an already-running service returns success, not an error. Creating a resource that already exists with identical configuration is a no-op.
+Commands that can be safely re-run should produce the same result. Starting an already-running service returns success. Creating a resource that already exists with identical configuration is a no-op.
 
-Agents retry. They lose track of state. They run the same command twice because a previous step timed out. Idempotency makes all of this safe. If your CLI returns an error on a repeat operation, the agent will try to "fix" a problem that does not exist.
+Agents retry. They lose track of state. They run the same command twice because a previous step timed out. Idempotency makes retries safe. If your CLI returns an error on a repeat operation, the agent will try to "fix" a problem that does not exist.
+
+When a resource exists with a different configuration than requested, return an error with a `conflict` kind — do not silently overwrite and do not silently ignore the difference.
 
 ```bash
 # DO: Idempotent by default
@@ -138,7 +179,11 @@ $ mytool start web-01
 Started web-01
 
 $ mytool start web-01
-web-01 is already running   # exit code 0, not an error
+web-01 is already running   # exit code 0
+
+# DO: Detect conflicts
+$ mytool create db-01 --memory 4GB
+# stderr: {"error": {"kind": "conflict", "message": "db-01 exists with memory=8GB"}}
 ```
 
 ```bash
@@ -147,59 +192,56 @@ $ mytool start web-01
 Error: web-01 is already running   # exit code 1 — agent thinks it failed
 ```
 
-### 6. Predictable Mutations
+### 6. Bounded Output
 
-Destructive commands must support `--dry-run` with structured output showing the proposed changes. The output should be a machine-readable diff, not prose.
+Let consumers control the volume and shape of output. Agents have finite context windows — a command that dumps 10,000 records as a single JSON array is unusable.
 
-Agents are not trusted operators. They hallucinate plausible-but-wrong inputs — path traversals, embedded query parameters, double-encoded strings, control characters. Your CLI is the last line of defense. Validate all inputs strictly. Reject what does not conform rather than guessing what was intended.
+Support `--limit` and `--offset` (or cursor-based pagination) for list commands. Support `--fields` to select specific output fields. Document pagination behavior in the schema.
 
 ```bash
-# DO: Structured dry-run preview
-$ mytool deploy web-api --env production --dry-run
-{
-  "action": "deploy",
-  "changes": [
-    {"field": "image", "from": "v1.2.0", "to": "v1.3.0"},
-    {"field": "replicas", "from": 2, "to": 2}
-  ],
-  "destructive": false
-}
+# DO: Pagination and field selection
+$ mytool list --limit 10 --offset 0 --json
+{"items": [...], "total": 1847, "limit": 10, "offset": 0}
 
-# DO: Reject hallucinated inputs
-$ mytool get "vm-01; rm -rf /"
-Error: invalid resource name — contains disallowed characters
+$ mytool list --limit 10 --offset 10 --json
+{"items": [...], "total": 1847, "limit": 10, "offset": 10}
+
+$ mytool list --fields name,status --limit 10 --json
+{"items": [{"name": "web-01", "status": "running"}, {"name": "db-01", "status": "stopped"}],
+ "total": 1847, "limit": 10, "offset": 0}
 ```
 
 ```bash
-# DON'T: Prose-only dry run
-$ mytool deploy web-api --env production --dry-run
-Would deploy web-api to production with the new image.
-# Agent can't parse what actually changes
-
-# DON'T: Trust agent input
-$ mytool get "../../etc/passwd"
-# Should reject, not attempt to resolve
+# DON'T: Unbounded output
+$ mytool list --json
+# Returns 50KB+ JSON array — exceeds agent context limits
+# No way to paginate or reduce output size
 ```
+
+---
+
+## General Guidance
+
+These recommendations apply broadly but are not principles in their own right.
+
+**Validate inputs strictly.** Agents hallucinate plausible-but-wrong inputs. Reject path traversals, control characters, and malformed data. Use allowlists over denylists. Your CLI should never pass unsanitized input to a shell.
+
+**Use consistent command structure.** The noun-verb pattern (`mytool resource action`) makes command discovery a tree search rather than a guessing game. Keep flag names consistent across subcommands.
+
+**Document stability.** If agents depend on your structured output, field removal is a breaking change. Document which parts of your output are stable.
 
 ---
 
 ## Reference Implementations
 
-The following tools implement all 6 principles:
+These tools are designed around these principles:
 
 [proxctl](https://github.com/rvben/proxctl) ·
 [unifi-cli](https://github.com/rvben/unifi-cli) ·
 [vership](https://github.com/rvben/vership) ·
-[jira-cli](https://github.com/rvben/jira-cli) ·
-[confluence-cli](https://github.com/rvben/confluence-cli) ·
-[homeassistant-cli](https://github.com/rvben/homeassistant-cli) ·
-[zoom-cli](https://github.com/rvben/zoom-cli) ·
-[n8nc](https://github.com/rvben/n8nc) ·
-[qnap-cli](https://github.com/rvben/qnap-cli) ·
-[yuki-cli](https://github.com/rvben/yuki-cli) ·
-[verg](https://github.com/rvben/verg)
+[confluence-cli](https://github.com/rvben/confluence-cli)
 
-For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and [CLI-Anything Hub](https://clianything.cc).
+For a full list, see the [homebrew tap](https://github.com/rvben/homebrew-tap). For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and [CLI-Anything Hub](https://clianything.cc).
 
 ---
 
@@ -214,9 +256,11 @@ For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and
 
 ## Contributing
 
-- Open an [issue](https://github.com/rvben/agent-first-cli/issues) to discuss changes to the spec
+This is a living specification. Contributions welcome.
+
+- Open an [issue](https://github.com/rvben/clispec/issues) to discuss changes
 - Submit a pull request for spec improvements
-- To list your tool as a reference implementation, open a PR adding it to the list above
+- To list your tool as a reference implementation, open a PR
 
 ---
 
