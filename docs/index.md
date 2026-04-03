@@ -14,7 +14,7 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 
 | # | Principle | In one sentence |
 |---|-----------|----------------|
-| 1 | [Structured Output](#1-structured-output) | Emit machine-readable data by default when piped, human-friendly output in a terminal. |
+| 1 | [Structured Output](#1-structured-output) | Emit JSON when piped, human-friendly output in a terminal, support `--output` for format selection. |
 | 2 | [Schema Introspection](#2-schema-introspection) | Let consumers discover commands, arguments, output fields, and error types at runtime. |
 | 3 | [Stderr/Stdout Separation](#3-stderrstdout-separation) | Data goes to stdout, everything else to stderr. |
 | 4 | [Non-Interactive by Default](#4-non-interactive-by-default) | Never block on input without a TTY. |
@@ -27,28 +27,36 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 
 ### 1. Structured Output
 
-Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped or when `--json` is passed, emit JSON. Use `isatty()` to auto-detect.
+Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped, emit JSON by default. Support `--output <format>` (or `-o`) for explicit format selection. Use `isatty()` to auto-detect.
+
+JSON is the default structured format due to universal tooling support. But JSON is not always optimal — Markdown and YAML use significantly fewer tokens for LLM consumption. Supporting multiple formats via `--output` lets consumers choose.
 
 ```bash
-# DO: Auto-detect output format
+# DO: Auto-detect and support explicit format selection
 $ mytool list
 NAME        STATUS    UPTIME
 web-01      running   14d 3h
 db-01       stopped   —
 
-$ mytool list --json
+$ mytool list -o json
 [{"name": "web-01", "status": "running", "uptime_seconds": 1220400},
  {"name": "db-01", "status": "stopped", "uptime_seconds": null}]
+
+$ mytool list -o yaml
+- name: web-01
+  status: running
+  uptime_seconds: 1220400
 
 $ mytool list | jq '.[] | select(.status == "running")'
 # Works — JSON emitted automatically when piped
 ```
 
 ```bash
-# DON'T: Force consumers to parse tables
-$ mytool list --format=table  # only option
+# DON'T: Only support human-readable output
+$ mytool list
 NAME        STATUS    UPTIME
 web-01      running   14d 3h
+# No way to get structured data
 ```
 
 On failure, emit a structured error to stderr and exit non-zero. Include a machine-readable `kind` field so consumers can branch on the failure type without parsing the message.
@@ -124,7 +132,7 @@ For context that schema cannot capture — workflows, security boundaries, opera
 
 Data goes to stdout. Messages, progress indicators, and diagnostics go to stderr. Never mix human-readable messages into the data stream.
 
-This applies in every output mode, not just `--json`. An agent piping your output to `jq` should never get a progress message in the JSON.
+This applies in every output mode, not just structured formats. An agent piping your output to `jq` should never get a progress message in the JSON.
 
 ```bash
 # DO: Clean separation
@@ -200,20 +208,20 @@ Support `--limit` and `--offset` (or cursor-based pagination) for list commands.
 
 ```bash
 # DO: Pagination and field selection
-$ mytool list --limit 10 --offset 0 --json
+$ mytool list --limit 10 --offset 0 -o json
 {"items": [...], "total": 1847, "limit": 10, "offset": 0}
 
-$ mytool list --limit 10 --offset 10 --json
+$ mytool list --limit 10 --offset 10 -o json
 {"items": [...], "total": 1847, "limit": 10, "offset": 10}
 
-$ mytool list --fields name,status --limit 10 --json
+$ mytool list --fields name,status --limit 10 -o json
 {"items": [{"name": "web-01", "status": "running"}, {"name": "db-01", "status": "stopped"}],
  "total": 1847, "limit": 10, "offset": 0}
 ```
 
 ```bash
 # DON'T: Unbounded output
-$ mytool list --json
+$ mytool list -o json
 # Returns 50KB+ JSON array — exceeds agent context limits
 # No way to paginate or reduce output size
 ```
