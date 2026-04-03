@@ -12,6 +12,7 @@ repo_name = "rvben/clispec"
 
 nav = [
   { "The Spec" = "index.md" },
+  { "Implementation Guide" = "implementation.md" },
 ]
 
 [project.theme]
