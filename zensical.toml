@@ -12,7 +12,14 @@ repo_name = "rvben/clispec"
 
 nav = [
   { "The Spec" = "index.md" },
-  { "Implementation Guide" = "implementation.md" },
+  { "Implementation Guide" = [
+    { "Overview" = "guide/index.md" },
+    { "Rust (clap)" = "guide/rust.md" },
+    { "Go (cobra)" = "guide/go.md" },
+    { "Python (click)" = "guide/python.md" },
+    { "Verifying Compliance" = "guide/verifying.md" },
+    { "CI/CD" = "guide/cicd.md" },
+  ]},
 ]
 
 [project.theme]
