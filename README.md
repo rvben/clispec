@@ -1,8 +1,8 @@
 # The CLI Spec
 
-**7 principles for building CLI tools that work for humans, scripts, and AI agents.**
+**6 principles for building CLI tools that work for humans, scripts, and AI agents.**
 
-Read the spec at [clispec.dev](https://clispec.dev)
+Read the spec at [clispec.dev](https://clispec.dev). Score any binary on your `$PATH` with [`clispec`](https://github.com/rvben/clispec-cli).
 
 ## Contributing
 

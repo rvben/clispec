@@ -1,8 +1,8 @@
 # The CLI Spec
 
-**7 principles for building CLI tools that work for humans, scripts, and AI agents.**
+**6 principles for building CLI tools that work for humans, scripts, and AI agents.**
 
-Version 0.1 — April 2026
+Version 0.1 — May 2026
 
 ---
 
@@ -23,7 +23,7 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 
 ---
 
-## The 6 Principles
+## The Principles
 
 ### 1. Structured Output
 
@@ -126,7 +126,20 @@ Usage: mytool list [options]
 # Consumers must regex-parse this to discover capabilities
 ```
 
+A clispec-compliant schema document MUST validate against [`https://clispec.dev/schema/v0.1.json`](/schema/v0.1.json). The schema is intentionally minimal — additional properties are permitted at every level, so tools can attach their own metadata without breaking conformance.
+
 For context that schema cannot capture — workflows, security boundaries, operational guidance — ship companion files alongside your tool (`CONTEXT.md`, `SKILL.md`, or `AGENTS.md`).
+
+#### Interop with CLI description formats
+
+The clispec schema is the agent-facing contract: output fields, error kinds, mutation markers. It is not a replacement for richer description formats designed for documentation and shell-completion generation:
+
+- [OpenCLI](https://opencli.org/) — OpenAPI-style description of an entire CLI surface (JSON/YAML).
+- [usage](https://usage.jdx.dev/) — KDL format used by mise to generate man pages, completions, and Fig specs from a single source.
+- [Fig autocomplete spec](https://fig.io/docs/getting-started/first-completion-spec) — TypeScript-based completion definitions.
+- [carapace-spec](https://github.com/carapace-sh/carapace-spec) — multi-shell completion spec with bridges from clap, cobra, click, and others.
+
+Tools are encouraged to emit one of these in addition to the clispec schema. clispec sits one level up: it mandates that the agent-facing contract exists, while leaving man pages, completions, and IDE integration to formats purpose-built for them.
 
 ### 3. Stderr/Stdout Separation
 
@@ -237,6 +250,26 @@ These recommendations apply broadly but are not principles in their own right.
 **Use consistent command structure.** The noun-verb pattern (`mytool resource action`) makes command discovery a tree search rather than a guessing game. Keep flag names consistent across subcommands.
 
 **Document stability.** If agents depend on your structured output, field removal is a breaking change. Document which parts of your output are stable.
+
+---
+
+## Conformance
+
+A CLI is clispec v0.1 compliant when it satisfies all of the following:
+
+- [ ] Emits structured output to stdout when stdout is not a TTY, and supports `--output`/`-o` for explicit format selection. *(Principle 1)*
+- [ ] Exposes a `schema` subcommand whose output validates against [`clispec.dev/schema/v0.1.json`](/schema/v0.1.json). *(Principle 2)*
+- [ ] Writes data to stdout and diagnostics to stderr in every output mode. *(Principle 3)*
+- [ ] Runs to completion without a TTY and provides a flag alternative for every interactive prompt. *(Principle 4)*
+- [ ] Idempotent commands return success on repeats; incompatible repeats emit a `conflict` error kind. *(Principle 5)*
+- [ ] List commands support `--limit` and `--offset` (or cursor pagination) and `--fields` for field selection. *(Principle 6)*
+
+The [`clispec`](https://github.com/rvben/clispec-cli) tool scores any binary on your `$PATH` against this checklist:
+
+```bash
+cargo install clispec
+clispec score mytool
+```
 
 ---
 

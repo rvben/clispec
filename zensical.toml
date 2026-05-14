@@ -1,6 +1,6 @@
 [project]
 site_name = "The CLI Spec"
-site_description = "7 principles for building CLI tools that work for humans, scripts, and AI agents"
+site_description = "6 principles for building CLI tools that work for humans, scripts, and AI agents"
 site_author = "Ruben Jongejan"
 site_url = "https://clispec.dev/"
 copyright = """
