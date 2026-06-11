@@ -31,6 +31,8 @@ Every command must support machine-readable output. When stdout is a TTY, displa
 
 The format flag is three-valued: its default (`auto`) selects the format by TTY detection, and an explicit value always wins. `mytool list -o text | grep web` must produce text, not JSON. Do not make the human format the flag's default value - that makes "explicitly chose text" indistinguishable from "did not choose", and the explicit choice gets silently overridden when piped.
 
+`--output`/`-o` is the canonical spelling. If a tool's `--output` or `-o` is already bound by an existing contract (the destination-path convention of curl and most compilers), `--format` is an acceptable alternative; repurposing the existing flag would break the contract the spec tells you to protect. Whichever flag the tool uses must be declared in the schema's `global_args` so consumers discover it instead of guessing.
+
 JSON is the default structured format due to universal tooling support. But JSON is not always optimal — Markdown and YAML use significantly fewer tokens for LLM consumption. Supporting multiple formats via `--output` lets consumers choose.
 
 ```bash
@@ -91,6 +93,17 @@ $ mytool connect --profile staging
 Error: something went wrong  # what kind? Consumer has no idea.
 ```
 
+Not every non-zero exit is an error. Diff-like commands exit non-zero to report a data state: `diff` and `grep` exit 1 for "there is a difference" or "no match", a dependency checker exits 1 for "updates exist". These are **outcomes**, not failures. An outcome exit writes no error envelope; stdout carries the result. Declare them in the schema's `outcomes` array so consumers can branch on the exit code without misclassifying a data state as a failure:
+
+```json
+"outcomes": [
+  {"code": 1, "name": "changes_pending",
+   "description": "Differences found; the report is on stdout. Not an error."}
+]
+```
+
+Outcome codes must not overlap with the exit codes declared in `errors`.
+
 ### 2. Schema Introspection
 
 Provide a `schema` command that outputs a machine-readable description of the tool's capabilities. Agents should never need to parse `--help` text to discover what a tool can do.
@@ -102,6 +115,7 @@ A useful schema includes:
 - **Global arguments**, flags accepted by every command (`--output`, `--quiet`, `--profile`), listed once at the top level. These are the flags a consumer needs on every invocation; a schema that omits them hides the most-used part of the interface.
 - **Output fields** with types — so consumers know the shape of the response without calling the command
 - **Error kinds** with **exit codes**, the finite set of `kind` values the tool emits and the exit code each maps to, so consumers can branch on the exit code alone, before parsing anything
+- **Outcomes**, documented non-zero exits that signal a data state rather than a failure (see Principle 1), kept separate from errors
 - **Mutation markers** — which commands are read-only and which modify state
 
 ```bash
@@ -163,6 +177,8 @@ Usage: mytool list [options]
 A clispec-compliant schema document MUST validate against [`https://clispec.dev/schema/v0.2.json`](/schema/v0.2.json). The schema is intentionally minimal — additional properties are permitted at every level, so tools can attach their own metadata without breaking conformance.
 
 v0.2 is additive over v0.1 (`global_args` at the top level, `exit_code` on error entries, and clarified `mutating` semantics). Any v0.1 document that does not already use those property names with conflicting types validates against v0.2 unchanged. [`v0.1.json`](/schema/v0.1.json) remains published.
+
+Two widening amendments were folded into v0.2 shortly after publication: the `--format` spelling allowance for tools whose `--output` is already taken, and the optional `outcomes` array. Both only relax or add; every document and tool that conformed to v0.2 at publication still conforms.
 
 For context that schema cannot capture — workflows, security boundaries, operational guidance — ship companion files alongside your tool (`CONTEXT.md`, `SKILL.md`, or `AGENTS.md`).
 
@@ -341,8 +357,8 @@ Most tools that adopt this spec are not greenfield. They have users, scripts, an
 
 A CLI is clispec v0.2 compliant when it satisfies all of the following:
 
-- [ ] Emits structured output to stdout when stdout is not a TTY, and supports `--output`/`-o` for explicit format selection. An explicit format always wins over TTY detection. *(Principle 1)*
-- [ ] On failure, exits non-zero and writes the structured error envelope as the last line of stderr. *(Principle 1)*
+- [ ] Emits structured output to stdout when stdout is not a TTY, and supports an explicit format-selection flag declared in `global_args`: canonically `--output`/`-o`, or `--format` where `--output` is already bound by an existing contract. An explicit format always wins over TTY detection. *(Principle 1)*
+- [ ] On failure, exits non-zero and writes the structured error envelope as the last line of stderr. Exit codes declared in `outcomes` are data states, not failures, and write no envelope. *(Principle 1)*
 - [ ] Exposes a `schema` subcommand whose output validates against [`clispec.dev/schema/v0.2.json`](/schema/v0.2.json). *(Principle 2)*
 - [ ] `schema` succeeds with no authentication, no configuration file, and no network access. *(Principle 2)*
 - [ ] Root `--help` output mentions the `schema` subcommand. *(Principle 2)*

@@ -38,6 +38,11 @@
       "description": "The finite set of `kind` values the tool emits in structured errors. Consumers can write exhaustive handlers against this set.",
       "type": "array",
       "items": { "$ref": "#/$defs/error" }
+    },
+    "outcomes": {
+      "description": "Documented non-zero exit codes that signal a data state rather than a failure (the diff/grep convention). An outcome exit writes no error envelope; stdout carries the result. Codes must not overlap with the exit codes declared in `errors`.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/outcome" }
     }
   },
   "$defs": {
@@ -104,6 +109,27 @@
         "name": { "type": "string", "minLength": 1 },
         "type": { "type": "string" },
         "description": { "type": "string" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["code", "name"],
+      "properties": {
+        "code": {
+          "description": "The exit code the tool returns for this outcome. Consumers can branch on it without parsing anything.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255
+        },
+        "name": {
+          "description": "Stable identifier for the outcome. Snake_case by convention.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "description": {
+          "type": "string"
+        }
       }
     },
     "error": {
