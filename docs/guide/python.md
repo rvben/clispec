@@ -6,43 +6,46 @@ Guidance for implementing The CLI Spec in Python using [click](https://click.pal
 
 ## Structured Output (Principle 1)
 
+Default the flag to `auto` so TTY detection only applies when the user did not choose a format. An explicit `-o text` must produce text even when piped (defaulting to `"text"` makes the explicit choice indistinguishable from the default, so it gets overridden):
+
 ```python
 import sys
 import json
 import click
 
-def is_json(ctx):
-    return ctx.obj.get("output") == "json" or not sys.stdout.isatty()
-
 @click.group()
-@click.option("--output", "-o", default="text",
-              type=click.Choice(["text", "json"]),
-              help="Output format")
+@click.option("--output", "-o", default="auto",
+              type=click.Choice(["auto", "text", "json"]),
+              help="Output format; auto detects TTY")
 @click.pass_context
 def cli(ctx, output):
     ctx.ensure_object(dict)
-    ctx.obj["output"] = output if output != "text" or sys.stdout.isatty() else "json"
+    if output == "auto":
+        output = "text" if sys.stdout.isatty() else "json"
+    ctx.obj["output"] = output
 
 @cli.command()
 @click.pass_context
 def list_items(ctx):
     items = fetch_items()
     if ctx.obj["output"] == "json":
-        click.echo(json.dumps(items))
+        click.echo(json.dumps({"items": items}))
     else:
         for item in items:
             click.echo(f"{item['name']:<20} {item['status']}")
 ```
 
-Errors go to stderr with a `kind` field:
+Errors exit non-zero, with the envelope as the last line of stderr:
 
 ```python
 import sys
 
-def emit_error(kind: str, message: str):
-    error = {"error": {"kind": kind, "message": message}}
-    print(json.dumps(error), file=sys.stderr)
-    sys.exit(1)
+def emit_error(kind: str, message: str, hint: str | None = None, exit_code: int = 1):
+    error = {"kind": kind, "message": message}
+    if hint:
+        error["hint"] = hint
+    print(json.dumps({"error": error}), file=sys.stderr)
+    sys.exit(exit_code)
 ```
 
 ---
@@ -51,10 +54,27 @@ def emit_error(kind: str, message: str):
 
 Walk click's command tree to auto-generate a schema:
 
+Options render as `--flags`; `click.Argument` params are positional and keep their bare name. Flags registered on the group go into the top-level `global_args` array so agents discover `--output` and friends:
+
 ```python
 import json
 import importlib.metadata
 import click
+
+def param_to_arg(param):
+    is_flag = isinstance(param, click.Option)
+    # param.opts keeps the declared spellings ("--config-file", "-c");
+    # param.name is normalized to config_file, which is not a valid flag.
+    arg = {
+        "name": max(param.opts, key=len) if is_flag else param.name,
+        "required": param.required,
+        "type": param.type.name,
+    }
+    if param.default is not None:
+        arg["default"] = param.default
+    if isinstance(param.type, click.Choice):
+        arg["enum"] = list(param.type.choices)
+    return arg
 
 def generate_schema(group):
     def walk(cmd):
@@ -62,29 +82,19 @@ def generate_schema(group):
             "name": cmd.name,
             "description": cmd.get_short_help_str(),
         }
-        args = []
-        for param in cmd.params:
-            if param.name in ("help",):
-                continue
-            arg = {
-                "name": f"--{param.name}",
-                "required": param.required,
-                "type": param.type.name,
-            }
-            if param.default is not None:
-                arg["default"] = param.default
-            args.append(arg)
-        if args:
+        if args := [param_to_arg(p) for p in cmd.params]:
             info["args"] = args
         if isinstance(cmd, click.Group):
-            subs = [walk(c) for name, c in sorted(cmd.commands.items())]
-            if subs:
+            if subs := [walk(c) for name, c in sorted(cmd.commands.items())]:
                 info["subcommands"] = subs
         return info
 
     return {
+        "clispec": "0.2",
         "name": group.name,
-        "version": importlib.metadata.version(group.name),
+        # The distribution name is not always the command name; pass it explicitly.
+        "version": importlib.metadata.version("mytool-dist"),
+        "global_args": [param_to_arg(p) for p in group.params],
         "commands": [walk(c) for name, c in sorted(group.commands.items())],
     }
 
@@ -98,16 +108,24 @@ def schema():
 
 ## Non-Interactive (Principle 4)
 
+Secrets never travel via argv (see General Guidance in the spec): prompt on a TTY, read stdin or an environment variable otherwise.
+
 ```python
+import os
 import sys
 
 @cli.command()
-@click.option("--token", help="API token")
-def init(token):
-    if sys.stdin.isatty() and not token:
+@click.option("--token-stdin", is_flag=True, help="Read API token from stdin")
+def init(token_stdin):
+    if token_stdin:
+        token = sys.stdin.readline().strip()
+    elif os.environ.get("MYTOOL_TOKEN"):
+        token = os.environ["MYTOOL_TOKEN"]
+    elif sys.stdin.isatty():
         token = click.prompt("API token", hide_input=True)
-    elif not token:
-        raise click.UsageError("--token required in non-interactive mode")
+    else:
+        raise click.UsageError(
+            "set MYTOOL_TOKEN or pass --token-stdin in non-interactive mode")
 
     # validate and save
 ```

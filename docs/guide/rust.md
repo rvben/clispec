@@ -8,11 +8,31 @@ The [reference implementations](https://github.com/rvben/homebrew-tap) are all R
 
 Auto-detect TTY to switch between human tables and JSON. Wrap the `--output` flag and `isatty()` check in an `OutputConfig` struct that every command receives.
 
+Default the flag to `auto` so TTY detection only applies when the user did not choose a format. An explicit `-o text` must produce text even when piped:
+
+```rust
+fn resolve_format(output_flag: &str) -> Format {
+    match output_flag {
+        "auto" => {
+            if std::io::stdout().is_terminal() {
+                Format::Text
+            } else {
+                Format::Json
+            }
+        }
+        "json" => Format::Json,
+        "yaml" => Format::Yaml,
+        _ => Format::Text,
+    }
+}
+```
+
+Defaulting the flag to `"text"` is a subtle bug: an explicit `-o text` becomes indistinguishable from the default and gets overridden to JSON when piped.
+
 **Working example:** [proxctl/src/output.rs](https://github.com/rvben/proxctl/blob/main/src/output.rs)
 
 Key points:
 
-- `OutputConfig::new(output_flag, quiet)` — sets `json = output_flag == "json" || !stdout().is_terminal()`
 - `print_data()` — writes to stdout (data stream)
 - `print_message()` — writes to stderr (human messages), suppressed by `--quiet`
 - `print_result()` — outputs JSON or human message depending on mode
@@ -34,17 +54,18 @@ This implementation:
 - Walks the clap command tree recursively with `walk_commands()`
 - Extracts argument names, types, defaults, possible values, and required status
 - Separates positional args from flags
-- Filters out global flags (help, version, json, profile)
 - Flattens nested subcommands into `"space list"`, `"page get"` style paths
 - Includes tests that verify schema structure and completeness
+
+Global flags (`--output`, `--quiet`, `--profile`) belong in the schema's top-level `global_args` array, not repeated per command and not omitted. These are the flags an agent needs on every invocation; a schema that drops them hides the most-used part of the interface. Collect them from the root command's arguments while walking subcommand args separately.
 
 To add the command to your CLI:
 
 ```rust
 #[derive(clap::Args)]
 struct GlobalArgs {
-    /// Output format: json, yaml, text
-    #[arg(long, short = 'o', default_value = "text")]
+    /// Output format: auto (TTY-detect), text, json, yaml
+    #[arg(long, short = 'o', default_value = "auto")]
     output: String,
 }
 

@@ -2,7 +2,7 @@
 
 **6 principles for building CLI tools that work for humans, scripts, and AI agents.**
 
-Version 0.1 — May 2026
+Version 0.2 - June 2026
 
 ---
 
@@ -18,7 +18,7 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 | 2 | [Schema Introspection](#2-schema-introspection) | Let consumers discover commands, arguments, output fields, and error types at runtime. |
 | 3 | [Stderr/Stdout Separation](#3-stderrstdout-separation) | Data goes to stdout, everything else to stderr. |
 | 4 | [Non-Interactive by Default](#4-non-interactive-by-default) | Never block on input without a TTY. |
-| 5 | [Idempotent Operations](#5-idempotent-operations) | Repeated commands produce the same result without side effects. |
+| 5 | [Idempotent Operations](#5-idempotent-operations) | Re-running a command converges to the same state and exits zero. |
 | 6 | [Bounded Output](#6-bounded-output) | Let consumers control the volume and shape of output. |
 
 ---
@@ -28,6 +28,8 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 ### 1. Structured Output
 
 Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped, emit JSON by default. Support `--output <format>` (or `-o`) for explicit format selection. Use `isatty()` to auto-detect.
+
+The format flag is three-valued: its default (`auto`) selects the format by TTY detection, and an explicit value always wins. `mytool list -o text | grep web` must produce text, not JSON. Do not make the human format the flag's default value - that makes "explicitly chose text" indistinguishable from "did not choose", and the explicit choice gets silently overridden when piped.
 
 JSON is the default structured format due to universal tooling support. But JSON is not always optimal — Markdown and YAML use significantly fewer tokens for LLM consumption. Supporting multiple formats via `--output` lets consumers choose.
 
@@ -39,15 +41,16 @@ web-01      running   14d 3h
 db-01       stopped   —
 
 $ mytool list -o json
-[{"name": "web-01", "status": "running", "uptime_seconds": 1220400},
- {"name": "db-01", "status": "stopped", "uptime_seconds": null}]
+{"items": [{"name": "web-01", "status": "running", "uptime_seconds": 1220400},
+           {"name": "db-01", "status": "stopped", "uptime_seconds": null}]}
 
 $ mytool list -o yaml
-- name: web-01
-  status: running
-  uptime_seconds: 1220400
+items:
+  - name: web-01
+    status: running
+    uptime_seconds: 1220400
 
-$ mytool list | jq '.[] | select(.status == "running")'
+$ mytool list | jq '.items[] | select(.status == "running")'
 # Works — JSON emitted automatically when piped
 ```
 
@@ -59,7 +62,21 @@ web-01      running   14d 3h
 # No way to get structured data
 ```
 
-On failure, emit a structured error to stderr and exit non-zero. Include a machine-readable `kind` field so consumers can branch on the failure type without parsing the message.
+List commands wrap their results in an `{"items": [...]}` envelope rather than emitting a bare array. The envelope is what gives pagination and truncation metadata a place to live (see Principle 6), and it means the output shape never changes when metadata is added.
+
+On failure, emit a structured error and exit non-zero. The error envelope is:
+
+```json
+{"error": {"kind": "auth", "message": "Token expired for profile 'staging'",
+           "hint": "Run 'mytool login --profile staging' to refresh."}}
+```
+
+- **`kind`** (required) - stable identifier from the finite set declared in the schema. Consumers branch on it without parsing the message.
+- **`message`** (required) - human-readable description.
+- **`hint`** (optional) - actionable remediation. `retryable` in the schema tells a consumer whether to retry; `hint` tells it what to do instead.
+- **`details`** (optional) - object with structured, kind-specific context.
+
+Write the envelope as a single line of JSON, as the **last line of stderr**. Principle 3 allows progress messages on stderr, so the fixed position is what keeps the error mechanically extractable.
 
 ```bash
 # DO: Structured errors on stderr
@@ -82,16 +99,23 @@ A useful schema includes:
 
 - **Commands** with descriptions
 - **Arguments** with types, defaults, and whether they are required
+- **Global arguments**, flags accepted by every command (`--output`, `--quiet`, `--profile`), listed once at the top level. These are the flags a consumer needs on every invocation; a schema that omits them hides the most-used part of the interface.
 - **Output fields** with types — so consumers know the shape of the response without calling the command
-- **Error kinds** — the finite set of `kind` values the tool emits, so consumers can write exhaustive handlers
+- **Error kinds** with **exit codes**, the finite set of `kind` values the tool emits and the exit code each maps to, so consumers can branch on the exit code alone, before parsing anything
 - **Mutation markers** — which commands are read-only and which modify state
 
 ```bash
 # DO: Comprehensive machine-readable schema
 $ mytool schema
 {
+  "clispec": "0.2",
   "name": "mytool",
   "version": "1.2.0",
+  "global_args": [
+    {"name": "--output", "type": "string", "enum": ["auto", "text", "json", "yaml"],
+     "default": "auto", "description": "Output format; auto detects TTY"},
+    {"name": "--quiet", "type": "boolean", "default": false}
+  ],
   "commands": [
     {
       "name": "list",
@@ -110,13 +134,21 @@ $ mytool schema
     }
   ],
   "errors": [
-    {"kind": "auth", "retryable": false, "description": "Authentication failed"},
-    {"kind": "not_found", "retryable": false, "description": "Resource does not exist"},
-    {"kind": "timeout", "retryable": true, "description": "Request timed out"},
-    {"kind": "rate_limit", "retryable": true, "description": "Too many requests"}
+    {"kind": "auth", "exit_code": 3, "retryable": false, "description": "Authentication failed"},
+    {"kind": "not_found", "exit_code": 4, "retryable": false, "description": "Resource does not exist"},
+    {"kind": "timeout", "exit_code": 5, "retryable": true, "description": "Request timed out"},
+    {"kind": "rate_limit", "exit_code": 6, "retryable": true, "description": "Too many requests"}
   ]
 }
 ```
+
+Mutation markers are a contract, not documentation. Consumers will grant trust based on `mutating: false` (for example, a permission system auto-approving read-only commands). A command marked non-mutating must truly not modify state, and an **unmarked command means unknown, not read-only**: consumers must not assume safety from absence.
+
+The `schema` command must work **before anything else does**: no authentication, no configuration file, no network. An agent reaches for the schema precisely when it knows nothing about the tool — often before setup has happened or after it has failed. A schema command that requires credentials is unavailable in exactly the situation it exists for.
+
+The root `--help` output must mention the `schema` command. `--help` is the universal first probe; it is how a consumer discovers that a machine-readable contract exists at all.
+
+The schema command is not exempt from Bounded Output (Principle 6). For tools with large command trees, a full dump is thousands of tokens of mostly irrelevant detail. `schema` SHOULD accept a command path that narrows the document to a subtree: `mytool schema apps deploy` emits the same top-level shape (`name`, `version`, `global_args`, `errors`) with `commands` filtered to the named subtree. Top-level metadata stays included because a consumer needs it regardless of which command it is about to run.
 
 ```bash
 # DON'T: Rely on help text as the only interface
@@ -126,7 +158,9 @@ Usage: mytool list [options]
 # Consumers must regex-parse this to discover capabilities
 ```
 
-A clispec-compliant schema document MUST validate against [`https://clispec.dev/schema/v0.1.json`](/schema/v0.1.json). The schema is intentionally minimal — additional properties are permitted at every level, so tools can attach their own metadata without breaking conformance.
+A clispec-compliant schema document MUST validate against [`https://clispec.dev/schema/v0.2.json`](/schema/v0.2.json). The schema is intentionally minimal — additional properties are permitted at every level, so tools can attach their own metadata without breaking conformance.
+
+v0.2 is additive over v0.1 (`global_args` at the top level, `exit_code` on error entries, and clarified `mutating` semantics). Any v0.1 document that does not already use those property names with conflicting types validates against v0.2 unchanged. [`v0.1.json`](/schema/v0.1.json) remains published.
 
 For context that schema cannot capture — workflows, security boundaries, operational guidance — ship companion files alongside your tool (`CONTEXT.md`, `SKILL.md`, or `AGENTS.md`).
 
@@ -149,17 +183,17 @@ This applies in every output mode, not just structured formats. An agent piping 
 
 ```bash
 # DO: Clean separation
-$ mytool list 2>/dev/null | jq '.[0].name'
+$ mytool list 2>/dev/null | jq '.items[0].name'
 "web-01"
 
 # Behind the scenes:
-# stdout: [{"name": "web-01", ...}]
+# stdout: {"items": [{"name": "web-01", ...}]}
 # stderr: Fetching services... done.
 ```
 
 ```bash
 # DON'T: Mix streams
-$ mytool list | jq '.[0].name'
+$ mytool list | jq '.items[0].name'
 Fetching services...
 parse error: Invalid literal at line 1, column 1
 ```
@@ -184,6 +218,23 @@ $ echo '{}' | mytool login
 Password: ^C  # Hangs forever
 ```
 
+Not blocking is half the rule; the other half is which way to fall. A command that would ask for confirmation on a TTY must, without a TTY, **refuse and exit non-zero** with a structured error naming the bypass flag. It must never proceed silently: an agent that hallucinates and retries should hit a wall, not a trigger. Use the `confirmation_required` error kind, with the `hint` naming the flag.
+
+```bash
+# DO: Fail safe without a TTY
+$ mytool delete vm-01 < /dev/null
+# stderr: {"error": {"kind": "confirmation_required",
+#          "message": "Deleting vm-01 requires confirmation",
+#          "hint": "Re-run with --yes to confirm."}}
+# exit code: 2
+```
+
+```bash
+# DON'T: Treat a missing TTY as consent
+$ mytool delete vm-01 < /dev/null
+Deleted vm-01   # the confirmation prompt was the only safeguard, and it vanished
+```
+
 For destructive operations, consider supporting `--dry-run` with structured output so consumers can preview changes before committing.
 
 ### 5. Idempotent Operations
@@ -194,6 +245,8 @@ Agents retry. They lose track of state. They run the same command twice because 
 
 When a resource exists with a different configuration than requested, return an error with a `conflict` kind — do not silently overwrite and do not silently ignore the difference.
 
+Structured output of mutating commands SHOULD include a `changed` boolean (the Terraform and Ansible convention): `true` when the command did work, `false` when the requested state was already in place. Exit 0 says the state is right; `changed` says whether this invocation did anything, and a consumer needs that distinction without parsing prose, for example to decide whether dependent services must be restarted or whether a retry actually re-ran something.
+
 ```bash
 # DO: Idempotent by default
 $ mytool start web-01
@@ -201,6 +254,9 @@ Started web-01
 
 $ mytool start web-01
 web-01 is already running   # exit code 0
+
+$ mytool start web-01 -o json
+{"name": "web-01", "status": "running", "changed": false}   # exit code 0
 
 # DO: Detect conflicts
 $ mytool create db-01 --memory 4GB
@@ -215,9 +271,11 @@ Error: web-01 is already running   # exit code 1 — agent thinks it failed
 
 ### 6. Bounded Output
 
-Let consumers control the volume and shape of output. Agents have finite context windows — a command that dumps 10,000 records as a single JSON array is unusable.
+Let consumers control the volume and shape of output. Agents have finite context windows; a command that dumps 10,000 records as a single JSON blob drowns the signal and burns the budget.
 
-Support `--limit` and `--offset` (or cursor-based pagination) for list commands. Support `--fields` to select specific output fields. Document pagination behavior in the schema.
+Support `--limit` and `--offset` (or cursor-based pagination) for list commands. Support `--fields` to select specific output fields. Declare the pagination flags in the schema's `args` so consumers discover them.
+
+When output is bounded, **say so in-band**. The envelope must carry enough metadata (`total`, a cursor, or an explicit `truncated: true`) for the consumer to know it received a partial result. Silent truncation is the worst failure mode: an agent that gets 100 silently-truncated rows will confidently report that 100 is all there is.
 
 ```bash
 # DO: Pagination and field selection
@@ -235,8 +293,8 @@ $ mytool list --fields name,status --limit 10 -o json
 ```bash
 # DON'T: Unbounded output
 $ mytool list -o json
-# Returns 50KB+ JSON array — exceeds agent context limits
-# No way to paginate or reduce output size
+# Returns a 50KB+ JSON array - wastes the consumer's context budget
+# No way to paginate or reduce output size, no signal that output is partial
 ```
 
 ---
@@ -251,18 +309,32 @@ These recommendations apply broadly but are not principles in their own right.
 
 **Document stability.** If agents depend on your structured output, field removal is a breaking change. Document which parts of your output are stable.
 
+**Never accept secrets via argv.** A `--token abc123` argument is visible in `ps`, lands in shell history, and ends up verbatim in agent transcripts, which may be logged, summarized, or shared. Accept secrets via stdin (`--password-stdin`), environment variables, or the OS keychain.
+
+**Offer NDJSON for large or streaming output.** One JSON object per line streams incrementally, composes with `--limit`, and degrades gracefully: `head -n 20` of NDJSON is 20 valid records, while a truncated JSON array is unparseable. Expose it as `-o ndjson`.
+
+**Emit no ANSI escapes when stdout is not a TTY, and respect `NO_COLOR`.** Auto-JSON covers the piped case, but text mode requested explicitly via `-o text` must also be free of color codes when piped.
+
+**Make long-running operations observable.** A command that is silent for minutes gets killed and retried (another reason Principle 5 matters). Report progress on stderr, support `--timeout` where applicable, and for genuinely long jobs prefer an async pattern: a start command that returns a job ID, and a status command to poll.
+
+**Be safe under concurrency.** Agents parallelize aggressively; assume two invocations of your tool run at the same time. Use atomic writes and lock files for shared state such as config and caches.
+
 ---
 
 ## Conformance
 
-A CLI is clispec v0.1 compliant when it satisfies all of the following:
+A CLI is clispec v0.2 compliant when it satisfies all of the following:
 
-- [ ] Emits structured output to stdout when stdout is not a TTY, and supports `--output`/`-o` for explicit format selection. *(Principle 1)*
-- [ ] Exposes a `schema` subcommand whose output validates against [`clispec.dev/schema/v0.1.json`](/schema/v0.1.json). *(Principle 2)*
+- [ ] Emits structured output to stdout when stdout is not a TTY, and supports `--output`/`-o` for explicit format selection. An explicit format always wins over TTY detection. *(Principle 1)*
+- [ ] On failure, exits non-zero and writes the structured error envelope as the last line of stderr. *(Principle 1)*
+- [ ] Exposes a `schema` subcommand whose output validates against [`clispec.dev/schema/v0.2.json`](/schema/v0.2.json). *(Principle 2)*
+- [ ] `schema` succeeds with no authentication, no configuration file, and no network access. *(Principle 2)*
+- [ ] Root `--help` output mentions the `schema` subcommand. *(Principle 2)*
 - [ ] Writes data to stdout and diagnostics to stderr in every output mode. *(Principle 3)*
 - [ ] Runs to completion without a TTY and provides a flag alternative for every interactive prompt. *(Principle 4)*
-- [ ] Idempotent commands return success on repeats; incompatible repeats emit a `conflict` error kind. *(Principle 5)*
-- [ ] List commands support `--limit` and `--offset` (or cursor pagination) and `--fields` for field selection. *(Principle 6)*
+- [ ] Commands that would prompt for confirmation refuse without a TTY, emitting a `confirmation_required` error that names the bypass flag; they never proceed silently. *(Principle 4)*
+- [ ] Re-running a command whose outcome is already in place exits zero; incompatible repeats emit a `conflict` error kind. *(Principle 5)*
+- [ ] List commands support `--limit` and `--offset` (or cursor pagination) and `--fields` for field selection, and bounded output carries truncation metadata in-band. *(Principle 6)*
 
 The [`clispec`](https://github.com/rvben/clispec-cli) tool scores any binary on your `$PATH` against this checklist:
 

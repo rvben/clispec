@@ -6,6 +6,8 @@ Guidance for implementing The CLI Spec in Go using [cobra](https://github.com/sp
 
 ## Structured Output (Principle 1)
 
+Default the flag to `auto` so TTY detection only applies when the user did not choose a format. An explicit `-o text` must produce text even when piped:
+
 ```go
 import (
     "encoding/json"
@@ -13,16 +15,22 @@ import (
     "golang.org/x/term"
 )
 
-func isJSON(cmd *cobra.Command) bool {
-    outputFlag, _ := cmd.Flags().GetString("output")
-    return outputFlag == "json" || !term.IsTerminal(int(os.Stdout.Fd()))
+func resolveFormat(cmd *cobra.Command) string {
+    format, _ := cmd.Flags().GetString("output")
+    if format != "auto" {
+        return format // explicit choice always wins
+    }
+    if term.IsTerminal(int(os.Stdout.Fd())) {
+        return "text"
+    }
+    return "json"
 }
 ```
 
 Register the flag on the root command:
 
 ```go
-rootCmd.PersistentFlags().StringP("output", "o", "text", "Output format: json, text")
+rootCmd.PersistentFlags().StringP("output", "o", "auto", "Output format: auto, text, json")
 ```
 
 Messages go to stderr:
@@ -49,12 +57,27 @@ func printData(data interface{}, output string) {
 
 Walk cobra's command tree to auto-generate a schema:
 
+Global flags registered on the root command go into the top-level `global_args` array, so agents discover `--output` and friends without them being repeated (or worse, omitted) per command:
+
 ```go
 func generateSchema(root *cobra.Command) map[string]interface{} {
+    var globalArgs []map[string]interface{}
+    root.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+        if f.Name == "help" {
+            return
+        }
+        globalArgs = append(globalArgs, map[string]interface{}{
+            "name":    "--" + f.Name,
+            "type":    f.Value.Type(),
+            "default": f.DefValue,
+        })
+    })
     return map[string]interface{}{
-        "name":     root.Name(),
-        "version":  version,
-        "commands": walkCommands(root),
+        "clispec":     "0.2",
+        "name":        root.Name(),
+        "version":     version,
+        "global_args": globalArgs,
+        "commands":    walkCommands(root),
     }
 }
 
@@ -110,17 +133,21 @@ var schemaCmd = &cobra.Command{
 
 ## Non-Interactive (Principle 4)
 
+Secrets never travel via argv (see General Guidance in the spec): prompt on a TTY, read an environment variable otherwise. The prompt goes to stderr so it never lands in the data stream.
+
 ```go
-import "golang.org/x/term"
+import (
+    "golang.org/x/term"
+)
 
 if term.IsTerminal(int(os.Stdin.Fd())) {
-    fmt.Print("API token: ")
+    fmt.Fprint(os.Stderr, "API token: ")
     token, _ = term.ReadPassword(int(os.Stdin.Fd()))
-    fmt.Println()
+    fmt.Fprintln(os.Stderr)
 } else {
-    token = []byte(viper.GetString("token"))
+    token = []byte(os.Getenv("MYTOOL_TOKEN"))
     if len(token) == 0 {
-        return fmt.Errorf("--token required in non-interactive mode")
+        return fmt.Errorf("MYTOOL_TOKEN required in non-interactive mode")
     }
 }
 ```
