@@ -384,7 +384,11 @@ These tools are designed around these principles:
 [proxctl](https://github.com/rvben/proxctl) ·
 [unifi-cli](https://github.com/rvben/unifi-cli) ·
 [vership](https://github.com/rvben/vership) ·
-[confluence-cli](https://github.com/rvben/confluence-cli)
+[confluence-cli](https://github.com/rvben/confluence-cli) ·
+[tidemark](https://github.com/rvben/tidemark) ·
+[upd](https://github.com/rvben/upd)
+
+tidemark is a fully offline tool (every runtime check passes under the scorer); upd demonstrates the `outcomes` array with its diff-like exit-1-on-updates contract.
 
 For a full list, see the [homebrew tap](https://github.com/rvben/homebrew-tap). For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and [CLI-Anything Hub](https://clianything.cc).
 
