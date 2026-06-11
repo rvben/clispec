@@ -144,6 +144,8 @@ $ mytool schema
 
 Mutation markers are a contract, not documentation. Consumers will grant trust based on `mutating: false` (for example, a permission system auto-approving read-only commands). A command marked non-mutating must truly not modify state, and an **unmarked command means unknown, not read-only**: consumers must not assume safety from absence.
 
+Entries in `commands` are invocable commands, identified by their full path as a single string (`"list"`, `"sites use"`, `"files download"`). A group node that only routes to subcommands (`sites` by itself) is not a command: either omit it, or include it for navigation without trust semantics. `mutating` is meaningful only on something that can be executed; consumers should not derive trust from it on a group entry, and tools should not set it there to influence tooling behavior.
+
 The `schema` command must work **before anything else does**: no authentication, no configuration file, no network. An agent reaches for the schema precisely when it knows nothing about the tool — often before setup has happened or after it has failed. A schema command that requires credentials is unavailable in exactly the situation it exists for.
 
 The root `--help` output must mention the `schema` command. `--help` is the universal first probe; it is how a consumer discovers that a machine-readable contract exists at all.
@@ -235,6 +237,8 @@ $ mytool delete vm-01 < /dev/null
 Deleted vm-01   # the confirmation prompt was the only safeguard, and it vanished
 ```
 
+The refusal rule applies only to commands that would actually prompt. A command that has never prompted needs no bypass flag, and adding a non-TTY refusal to it is a breaking change for every script that already runs it unattended, not a compliance step. A tool with no interactive prompts satisfies this principle as-is. Reserve new confirmation gates for genuinely destructive or irreversible operations, and introduce them as deliberate design decisions, never as part of a mechanical compliance pass.
+
 For destructive operations, consider supporting `--dry-run` with structured output so consumers can preview changes before committing.
 
 ### 5. Idempotent Operations
@@ -318,6 +322,18 @@ These recommendations apply broadly but are not principles in their own right.
 **Make long-running operations observable.** A command that is silent for minutes gets killed and retried (another reason Principle 5 matters). Report progress on stderr, support `--timeout` where applicable, and for genuinely long jobs prefer an async pattern: a start command that returns a job ID, and a status command to poll.
 
 **Be safe under concurrency.** Agents parallelize aggressively; assume two invocations of your tool run at the same time. Use atomic writes and lock files for shared state such as config and caches.
+
+---
+
+## Adopting the Spec in an Existing CLI
+
+Most tools that adopt this spec are not greenfield. They have users, scripts, and an existing flag surface, and that surface is itself a contract. Compliance work must not break it.
+
+- **Keep legacy format flags working.** If the tool had `--json`, keep it as a hidden alias for `--output json`. If `--format` was the selector, keep it as an alias of `--output`. Removing a flag that scripts already pass is a breaking change dressed up as cleanup.
+- **Never narrow accepted values.** If the format flag accepted `table` or `plain`, keep accepting them (mapping to the text format) even when the documented set becomes `auto`, `text`, `json`.
+- **Watch for flag collisions.** Some CLIs already use `--output` or `-o` for a destination path (the curl and compiler convention). That existing meaning must keep working exactly as before; resolving the collision without breaking either contract takes deliberate design, not a mechanical rename.
+- **Add, don't move.** New flags, error kinds, and envelope fields are additive. Renaming or removing anything existing is a versioning decision separate from spec adoption.
+- **Existing exit codes and prompt behavior are contracts too.** Do not add confirmation gates to commands that never prompted (see Principle 4), and do not change documented exit semantics; declare them in the schema instead.
 
 ---
 
