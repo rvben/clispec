@@ -388,9 +388,11 @@ These tools are designed around these principles:
 [tidemark](https://github.com/rvben/tidemark) ·
 [upd](https://github.com/rvben/upd) ·
 [dotpick](https://github.com/rvben/dotpick) ·
-[whatport](https://github.com/rvben/whatport)
+[whatport](https://github.com/rvben/whatport) ·
+[downstat](https://github.com/rvben/downstat) ·
+[clihatch](https://github.com/rvben/clihatch)
 
-tidemark is a fully offline tool (every runtime check passes under the scorer); upd demonstrates the `outcomes` array with its diff-like exit-1-on-updates contract; dotpick and whatport are stateless, agent-facing tools (token-minimal projection across JSON/YAML/TOML/NDJSON, and TCP/UDP port inspection) with structured output, mutation markers, and clispec schemas.
+tidemark is a fully offline tool (every runtime check passes under the scorer); upd demonstrates the `outcomes` array with its diff-like exit-1-on-updates contract; dotpick, whatport, and downstat are stateless, agent-facing tools (projection, port inspection, multi-registry download stats) with structured output, mutation markers, and clispec schemas; clihatch scaffolds new tools that are clispec-compliant out of the box.
 
 For a full list, see the [homebrew tap](https://github.com/rvben/homebrew-tap). For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and [CLI-Anything Hub](https://clianything.cc).
 
