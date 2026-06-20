@@ -386,9 +386,11 @@ These tools are designed around these principles:
 [vership](https://github.com/rvben/vership) ·
 [confluence-cli](https://github.com/rvben/confluence-cli) ·
 [tidemark](https://github.com/rvben/tidemark) ·
-[upd](https://github.com/rvben/upd)
+[upd](https://github.com/rvben/upd) ·
+[dotpick](https://github.com/rvben/dotpick) ·
+[whatport](https://github.com/rvben/whatport)
 
-tidemark is a fully offline tool (every runtime check passes under the scorer); upd demonstrates the `outcomes` array with its diff-like exit-1-on-updates contract.
+tidemark is a fully offline tool (every runtime check passes under the scorer); upd demonstrates the `outcomes` array with its diff-like exit-1-on-updates contract; dotpick and whatport are stateless, agent-facing tools (token-minimal projection across JSON/YAML/TOML/NDJSON, and TCP/UDP port inspection) with structured output, mutation markers, and clispec schemas.
 
 For a full list, see the [homebrew tap](https://github.com/rvben/homebrew-tap). For registries of agent-friendly CLI tools, see [clime.sh](https://clime.sh) and [CLI-Anything Hub](https://clianything.cc).
 
