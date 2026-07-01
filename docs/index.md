@@ -27,7 +27,9 @@ Agents are not trusted operators. They hallucinate inputs, retry unpredictably, 
 
 ### 1. Structured Output
 
-Every command must support machine-readable output. When stdout is a TTY, display human-friendly tables with colors. When piped, emit JSON by default. Support `--output <format>` (or `-o`) for explicit format selection. Use `isatty()` to auto-detect.
+Every command must support machine-readable output. A tool MUST provide structured output (JSON) through an explicit format flag and MUST honor it non-interactively; text output MUST carry no ANSI or color codes when stdout is not a TTY. On a TTY, display human-friendly tables with colors.
+
+Tools SHOULD auto-detect with `isatty()` and emit structured output when piped. That default makes the first un-flagged invocation machine-readable for a naive consumer, and it is the expected behavior for new tools. A tool with an established human-readable default MAY instead keep emitting text when piped rather than break the scripts and editors that parse it (see Adopting the Spec), but it MUST then declare that default in the schema's top-level `output` field so a consumer reads the contract instead of inferring it by testing: `"output": {"tty": "text", "piped": "text"}`. Declaring `"piped": "json"` marks a tool as safe to pipe blindly.
 
 The format flag is three-valued: its default (`auto`) selects the format by TTY detection, and an explicit value always wins. `mytool list -o text | grep web` must produce text, not JSON. Do not make the human format the flag's default value - that makes "explicitly chose text" indistinguishable from "did not choose", and the explicit choice gets silently overridden when piped.
 
@@ -125,6 +127,7 @@ $ mytool schema
   "clispec": "0.2",
   "name": "mytool",
   "version": "1.2.0",
+  "output": {"tty": "text", "piped": "json"},
   "global_args": [
     {"name": "--output", "type": "string", "enum": ["auto", "text", "json", "yaml"],
      "default": "auto", "description": "Output format; auto detects TTY"},
@@ -178,7 +181,7 @@ A clispec-compliant schema document MUST validate against [`https://clispec.dev/
 
 v0.2 is additive over v0.1 (`global_args` at the top level, `exit_code` on error entries, and clarified `mutating` semantics). Any v0.1 document that does not already use those property names with conflicting types validates against v0.2 unchanged. [`v0.1.json`](/schema/v0.1.json) remains published.
 
-Two widening amendments were folded into v0.2 shortly after publication: the `--format` spelling allowance for tools whose `--output` is already taken, and the optional `outcomes` array. Both only relax or add; every document and tool that conformed to v0.2 at publication still conforms.
+Three widening amendments were folded into v0.2 shortly after publication: the `--format` spelling allowance for tools whose `--output` is already taken, the optional `outcomes` array, and relaxing the piped-output default (a tool with an established human-text default may keep it, provided it declares the default in the top-level `output` field). All three only relax or add; every document and tool that conformed to v0.2 at publication still conforms.
 
 For context that schema cannot capture — workflows, security boundaries, operational guidance — ship companion files alongside your tool (`CONTEXT.md`, `SKILL.md`, or `AGENTS.md`).
 
@@ -333,7 +336,7 @@ These recommendations apply broadly but are not principles in their own right.
 
 **Offer NDJSON for large or streaming output.** One JSON object per line streams incrementally, composes with `--limit`, and degrades gracefully: `head -n 20` of NDJSON is 20 valid records, while a truncated JSON array is unparseable. Expose it as `-o ndjson`.
 
-**Emit no ANSI escapes when stdout is not a TTY, and respect `NO_COLOR`.** Auto-JSON covers the piped case, but text mode requested explicitly via `-o text` must also be free of color codes when piped.
+**Emit no ANSI escapes when stdout is not a TTY, and respect `NO_COLOR`.** This holds for a structured piped default and for text output alike: text requested explicitly via `-o text`, or a declared legacy text default, must also be free of color codes when piped.
 
 **Make long-running operations observable.** A command that is silent for minutes gets killed and retried (another reason Principle 5 matters). Report progress on stderr, support `--timeout` where applicable, and for genuinely long jobs prefer an async pattern: a start command that returns a job ID, and a status command to poll.
 
@@ -346,6 +349,7 @@ These recommendations apply broadly but are not principles in their own right.
 Most tools that adopt this spec are not greenfield. They have users, scripts, and an existing flag surface, and that surface is itself a contract. Compliance work must not break it.
 
 - **Keep legacy format flags working.** If the tool had `--json`, keep it as a hidden alias for `--output json`. If `--format` was the selector, keep it as an alias of `--output`. Removing a flag that scripts already pass is a breaking change dressed up as cleanup.
+- **An established piped-output default is a contract too, so declare it.** If piped output has always been human-readable text, as with most linters, formatters, and version-control tools, you MAY keep that default rather than flip it to JSON and break every script and editor that parses it. Declare it in the schema's top-level `output` field (`"piped": "text"`) so machine consumers discover the behavior instead of inferring it; Principle 1 is then satisfied by the declared, honored format flag plus this declaration.
 - **Never narrow accepted values.** If the format flag accepted `table` or `plain`, keep accepting them (mapping to the text format) even when the documented set becomes `auto`, `text`, `json`.
 - **Watch for flag collisions.** Some CLIs already use `--output` or `-o` for a destination path (the curl and compiler convention). That existing meaning must keep working exactly as before; resolving the collision without breaking either contract takes deliberate design, not a mechanical rename.
 - **Add, don't move.** New flags, error kinds, and envelope fields are additive. Renaming or removing anything existing is a versioning decision separate from spec adoption.
@@ -357,7 +361,7 @@ Most tools that adopt this spec are not greenfield. They have users, scripts, an
 
 A CLI is clispec v0.2 compliant when it satisfies all of the following:
 
-- [ ] Emits structured output to stdout when stdout is not a TTY, and supports an explicit format-selection flag declared in `global_args`: canonically `--output`/`-o`, or `--format` where `--output` is already bound by an existing contract. An explicit format always wins over TTY detection. *(Principle 1)*
+- [ ] Provides structured output (JSON) through an explicit format flag declared in `global_args` (canonically `--output`/`-o`, or `--format` where `--output` is already bound by an existing contract) and honored non-interactively; an explicit format always wins over TTY detection, and text output carries no ANSI when stdout is not a TTY. Structured output SHOULD be the default when piped; a tool that keeps a human-readable default MAY do so if it declares its default output behavior in the top-level `output` field. *(Principle 1)*
 - [ ] On failure, exits non-zero and writes the structured error envelope as the last line of stderr. Exit codes declared in `outcomes` are data states, not failures, and write no envelope. *(Principle 1)*
 - [ ] Exposes a `schema` subcommand whose output validates against [`clispec.dev/schema/v0.2.json`](/schema/v0.2.json). *(Principle 2)*
 - [ ] `schema` succeeds with no authentication, no configuration file, and no network access. *(Principle 2)*

@@ -43,6 +43,14 @@
       "description": "Documented non-zero exit codes that signal a data state rather than a failure (the diff/grep convention). An outcome exit writes no error envelope; stdout carries the result. Codes must not overlap with the exit codes declared in `errors`.",
       "type": "array",
       "items": { "$ref": "#/$defs/outcome" }
+    },
+    "output": {
+      "description": "How the tool's default (unflagged) output behaves, so a consumer knows whether it must request structured output. `piped` is the format emitted when stdout is not a TTY and no explicit format flag is given: a structured value (e.g. \"json\") means the tool is safe to pipe into a JSON consumer directly; \"text\" means the consumer should pass the declared format flag.",
+      "type": "object",
+      "properties": {
+        "tty": { "type": "string", "description": "Default format on a TTY (usually \"text\")." },
+        "piped": { "type": "string", "description": "Default format when stdout is not a TTY and no explicit format is given." }
+      }
     }
   },
   "$defs": {
