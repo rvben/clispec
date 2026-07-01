@@ -375,6 +375,18 @@ cargo install clispec
 clispec score mytool
 ```
 
+### The badge
+
+Tools that follow the spec can wear the clispec badge, linking back to clispec.dev:
+
+[![clispec compliant](https://img.shields.io/badge/clispec-compliant-3b82f6)](https://clispec.dev)
+
+```markdown
+[![clispec compliant](https://img.shields.io/badge/clispec-compliant-3b82f6)](https://clispec.dev)
+```
+
+Compliance is a claim, so make it a true one: run `clispec score <tool>` and confirm it passes the checklist above before adding the badge. A CI-verified badge, backed by a `clispec` GitHub Action, is planned.
+
 ---
 
 ## Reference Implementations
