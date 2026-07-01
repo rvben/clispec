@@ -73,6 +73,21 @@
         "subcommands": {
           "type": "array",
           "items": { "$ref": "#/$defs/command" }
+        },
+        "example": {
+          "description": "A self-contained invocation for exercising this command (used by conformance tooling): the args to pass and optional stdin to feed. It should produce the command's normal structured output, so a tool whose positional is a path or stdin can be probed without the checker guessing that the command name works as a positional.",
+          "type": "object",
+          "properties": {
+            "args": {
+              "description": "Arguments to pass after the command name.",
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "stdin": {
+              "description": "Text to feed to the command's standard input.",
+              "type": "string"
+            }
+          }
         }
       }
     },
