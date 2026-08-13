@@ -1,0 +1,27 @@
+{
+  "x-test": {
+    "violates": "command_layout is retired in v0.3",
+    "detect": "schema",
+    "at": "/command_layout",
+    "why": "v0.3 has one command encoding, so a layout discriminator signals a document that was version-stamped without being migrated."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "x-test": {
+    "violates": "clispec must be exactly \"0.3\"",
+    "detect": "schema",
+    "at": "/clispec",
+    "why": "A v0.2 document must fail against the v0.3 schema rather than partly validating. The const is what makes each published version a distinct contract."
+  },
+  "clispec": "0.2",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

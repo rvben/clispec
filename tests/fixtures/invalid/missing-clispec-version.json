@@ -1,0 +1,25 @@
+{
+  "x-test": {
+    "violates": "clispec is required in v0.3",
+    "detect": "schema",
+    "at": "",
+    "why": "Without a version string a consumer must guess which contract applies, which is the interop defect that v0.2's post-publication amendments created."
+  },
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

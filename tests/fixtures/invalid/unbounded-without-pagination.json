@@ -1,0 +1,26 @@
+{
+  "x-test": {
+    "violates": "cardinality unbounded requires pagination and fields_arg",
+    "detect": "schema",
+    "at": "/commands/0",
+    "why": "This is the v0.3 form of Principle 6. The rule is narrower than v0.2's blanket requirement but has real teeth: it is machine-enforced rather than prose-only."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List every event ever recorded.",
+      "effects": "read_only",
+      "cardinality": "unbounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

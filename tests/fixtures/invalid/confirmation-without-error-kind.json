@@ -1,0 +1,34 @@
+{
+  "x-test": {
+    "violates": "conditional-error-kind",
+    "detect": "rules",
+    "at": "/errors",
+    "why": "Declaring a bypass argument declares that the command refuses without a TTY. If the kind it refuses with is not in the error set, an agent has no branch for the refusal and will read it as an unmodelled failure."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "delete",
+      "description": "Delete a service.",
+      "effects": "idempotent",
+      "cardinality": "single",
+      "stdout_schema": {},
+      "confirmation_bypass_arg": "--yes",
+      "args": [
+        {
+          "name": "--yes",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

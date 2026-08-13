@@ -1,0 +1,216 @@
+{
+  "x-test": {
+    "purpose": "Exercises every v0.3 feature at once: all three output kinds, all three effect values, an unbounded command with cursor pagination and field selection, nested typed output fields, a stdout_schema (inline, and by reference for the command whose output is this document), per-command error and outcome subsets, a confirmation gate, an interactive command, outcomes, and both extension namespaces."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "2.3.0",
+  "description": "Manage services across environments.",
+  "output": { "tty": "text", "piped": "json" },
+  "global_args": [
+    {
+      "name": "--output",
+      "type": "string",
+      "enum": ["auto", "text", "json", "yaml", "ndjson"],
+      "default": "auto",
+      "description": "Output format; auto detects TTY."
+    },
+    { "name": "--profile", "type": "string", "description": "Credential profile to use." },
+    { "name": "--quiet", "type": "boolean", "default": false }
+  ],
+  "commands": [
+    {
+      "name": "services list",
+      "description": "List services in the active environment.",
+      "effects": "read_only",
+      "output_kind": "data",
+      "cardinality": "unbounded",
+      "pagination": {
+        "style": "cursor",
+        "cursor_field": "next_cursor",
+        "cursor_arg": "--cursor",
+        "limit_arg": "--limit"
+      },
+      "fields_arg": "--fields",
+      "args": [
+        { "name": "--limit", "type": "integer", "default": 100 },
+        { "name": "--fields", "type": "string[]", "description": "Fields to include in each record." },
+        { "name": "--cursor", "type": "string", "description": "Continuation token from a previous page." },
+        {
+          "name": "--status",
+          "type": "string",
+          "enum": ["running", "stopped", "all"],
+          "default": "all"
+        }
+      ],
+      "output_fields": [
+        { "name": "name", "type": "string" },
+        { "name": "status", "type": "string", "enum": ["running", "stopped"] },
+        { "name": "uptime_seconds", "type": "integer", "nullable": true },
+        {
+          "name": "tags",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        {
+          "name": "owner",
+          "type": "object",
+          "nullable": true,
+          "fields": [
+            { "name": "team", "type": "string" },
+            { "name": "email", "type": "string" }
+          ]
+        }
+      ],
+      "stdout_schema": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "status"],
+              "properties": {
+                "name": { "type": "string" },
+                "status": { "enum": ["running", "stopped"] },
+                "uptime_seconds": { "type": ["integer", "null"] }
+              }
+            }
+          },
+          "total": { "type": "integer" },
+          "next_cursor": { "type": ["string", "null"] }
+        }
+      },
+      "errors": ["auth", "rate_limit"],
+      "stability": "stable"
+    },
+    {
+      "name": "services start",
+      "description": "Start a service; already-running is a no-op.",
+      "effects": "idempotent",
+      "cardinality": "single",
+      "args": [{ "name": "name", "type": "string", "required": true }],
+      "output_fields": [
+        { "name": "name", "type": "string" },
+        { "name": "status", "type": "string" },
+        { "name": "changed", "type": "boolean" }
+      ],
+      "errors": ["auth", "not_found", "conflict"]
+    },
+    {
+      "name": "services delete",
+      "description": "Delete a service and its volumes.",
+      "effects": "idempotent",
+      "cardinality": "single",
+      "confirmation_bypass_arg": "--yes",
+      "args": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "--yes", "type": "boolean", "default": false, "description": "Skip the confirmation prompt." }
+      ],
+      "output_fields": [
+        { "name": "name", "type": "string" },
+        { "name": "changed", "type": "boolean" }
+      ],
+      "errors": ["auth", "not_found", "confirmation_required"]
+    },
+    {
+      "name": "deploys create",
+      "description": "Start a new deployment. Each call creates another deployment.",
+      "effects": "non_idempotent",
+      "idempotency_key_arg": "--request-id",
+      "cardinality": "single",
+      "args": [
+        { "name": "--request-id", "type": "string", "description": "Caller-supplied key; a repeat with the same key returns the original deployment." }
+      ],
+      "output_fields": [
+        { "name": "deploy_id", "type": "string" },
+        { "name": "created", "type": "boolean" }
+      ],
+      "errors": ["auth", "rate_limit"]
+    },
+    {
+      "name": "logs tail",
+      "description": "Stream log records until interrupted.",
+      "effects": "read_only",
+      "output_kind": "stream",
+      "stream_format": "ndjson",
+      "args": [{ "name": "--since", "type": "duration", "default": "1h" }],
+      "output_fields": [
+        { "name": "timestamp", "type": "string" },
+        { "name": "level", "type": "string", "enum": ["debug", "info", "warn", "error"] },
+        { "name": "message", "type": "string" }
+      ],
+      "errors": ["auth", "not_found"]
+    },
+    {
+      "name": "artifacts download",
+      "description": "Write an artifact's bytes to stdout.",
+      "effects": "read_only",
+      "output_kind": "opaque",
+      "media_type": "application/octet-stream",
+      "args": [{ "name": "id", "type": "string", "required": true }],
+      "errors": ["auth", "not_found"]
+    },
+    {
+      "name": "completions",
+      "description": "Generate a shell completion script.",
+      "effects": "read_only",
+      "output_kind": "opaque",
+      "media_type": "text/x-shellscript",
+      "args": [
+        { "name": "shell", "type": "string", "required": true, "enum": ["bash", "zsh", "fish"] }
+      ]
+    },
+    {
+      "name": "console",
+      "description": "Open an interactive console on a service.",
+      "effects": "non_idempotent",
+      "idempotency_key_arg": "--session-id",
+      "output_kind": "opaque",
+      "media_type": "text/plain",
+      "requires_tty": true,
+      "args": [
+        { "name": "name", "type": "string", "required": true },
+        { "name": "--session-id", "type": "string" }
+      ],
+      "errors": ["auth", "not_found", "tty_required"]
+    },
+    {
+      "name": "drift check",
+      "description": "Report configuration drift. Exits 1 when drift exists.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        { "name": "service", "type": "string" },
+        { "name": "drifted_keys", "type": "array", "items": { "type": "string" } }
+      ],
+      "outcomes": ["drift_found"]
+    },
+    {
+      "name": "schema",
+      "description": "Print this clispec contract as JSON.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": { "$ref": "https://clispec.dev/schema/v0.3.json" },
+      "args": [
+        { "name": "path", "type": "string[]", "required": false, "description": "Narrow the document to a command subtree." }
+      ]
+    }
+  ],
+  "errors": [
+    { "kind": "auth", "exit_code": 3, "retryable": false, "description": "Authentication failed." },
+    { "kind": "not_found", "exit_code": 4, "retryable": false, "description": "Resource does not exist." },
+    { "kind": "conflict", "exit_code": 5, "retryable": false, "description": "Resource exists with a different configuration." },
+    { "kind": "confirmation_required", "exit_code": 6, "retryable": false, "description": "A confirmation gate was reached without a TTY." },
+    { "kind": "tty_required", "exit_code": 7, "retryable": false, "description": "The command needs a terminal." },
+    { "kind": "rate_limit", "exit_code": 8, "retryable": true, "description": "Too many requests." }
+  ],
+  "outcomes": [
+    { "code": 1, "name": "drift_found", "description": "Drift was detected; the report is on stdout. Not an error." }
+  ],
+  "extensions": {
+    "homepage": "https://example.com/mytool"
+  },
+  "x-vendor-note": "Top-level x- keys are the other permitted extension form."
+}

@@ -1,0 +1,27 @@
+{
+  "x-test": {
+    "violates": "deprecated mutating must agree with effects",
+    "detect": "schema",
+    "at": "/commands/0/effects",
+    "why": "Both fields drive trust decisions. A document where one says read-only and the other says it mutates would have a permission system auto-approving a command that changes state."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "apply",
+      "description": "Converge to the declared state.",
+      "effects": "idempotent",
+      "mutating": false,
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "conflict",
+      "exit_code": 5
+    }
+  ]
+}

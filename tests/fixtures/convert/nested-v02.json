@@ -1,0 +1,114 @@
+{
+  "x-test": {
+    "assume_cardinality": "bounded",
+    "expects_review": [
+      "/commands/1/effects",
+      "/commands/1/stdout_schema",
+      "/commands/3/effects",
+      "/commands/3/stdout_schema",
+      "/commands/6/effects",
+      "/commands/6/stdout_schema",
+      "/commands/2/output_fields/1/type",
+      "/outcomes/0",
+      "/errors/1/kind",
+      ""
+    ],
+    "expects_commands": [
+      "sites list",
+      "sites delete",
+      "report",
+      "sync",
+      "assets",
+      "assets list",
+      "cache clear"
+    ],
+    "expects_clean": false,
+    "why": "One document carrying every mechanical transform at once: a nested command tree to flatten, all four v0.2 type conventions, an outcome written in the error shape, a bare short flag, a global bypass argument, and a command that never declared `mutating`. It also carries all three kinds of group node, which is the decision the converter gets no second chance at: `sites` routes and nothing else, `assets` declares output fields of its own and so survives as a command, and `cache` declares only a flag, which every framework lets a group hold on behalf of its children and which is therefore not evidence that invoking the group does anything. What survives into the review list is exactly what v0.2 never recorded."
+  },
+  "clispec": "0.2",
+  "name": "legacytool",
+  "version": "2.1.0",
+  "description": "A v0.2 tool with a nested command tree.",
+  "global_args": [
+    { "name": "--output", "short": "o", "type": "string", "enum": ["auto", "json", "text"], "default": "auto", "description": "Output format." },
+    { "name": "--yes", "type": "boolean", "default": false, "description": "Skip confirmation prompts." }
+  ],
+  "commands": [
+    {
+      "name": "sites",
+      "description": "Manage sites.",
+      "mutating": false,
+      "subcommands": [
+        {
+          "name": "list",
+          "description": "List every site.",
+          "mutating": false,
+          "output_fields": [
+            { "name": "id", "type": "string" },
+            { "name": "tags", "type": "string[]" },
+            { "name": "size", "type": "integer | null" },
+            { "name": "owner", "type": "object" }
+          ]
+        },
+        {
+          "name": "delete",
+          "description": "Delete a site.",
+          "mutating": true,
+          "confirmation_required": true,
+          "args": [{ "name": "id", "type": "string", "required": true }]
+        }
+      ]
+    },
+    {
+      "name": "report",
+      "description": "Emit a report.",
+      "mutating": false,
+      "output_fields": [
+        { "name": "generated_at", "type": "string" },
+        { "name": "rows", "type": "array" },
+        { "name": "note", "type": "string | null" }
+      ]
+    },
+    {
+      "name": "sync",
+      "description": "Push local state upstream."
+    },
+    {
+      "name": "assets",
+      "description": "Show the asset totals, and manage assets.",
+      "mutating": false,
+      "output_fields": [
+        { "name": "count", "type": "integer" },
+        { "name": "bytes", "type": "integer" }
+      ],
+      "subcommands": [
+        {
+          "name": "list",
+          "description": "List every asset.",
+          "mutating": false,
+          "output_fields": [{ "name": "path", "type": "string" }]
+        }
+      ]
+    },
+    {
+      "name": "cache",
+      "description": "Manage the local cache.",
+      "mutating": false,
+      "args": [{ "name": "--cache-dir", "type": "string" }],
+      "subcommands": [
+        {
+          "name": "clear",
+          "description": "Delete every cached entry.",
+          "mutating": true
+        }
+      ]
+    }
+  ],
+  "errors": [
+    { "kind": "usage", "exit_code": 3, "retryable": false },
+    { "kind": "auth_error", "exit_code": 4, "retryable": false }
+  ],
+  "outcomes": [
+    { "exit_code": 1, "kind": "changes_pending", "retryable": false, "description": "Changes are waiting to be applied." }
+  ]
+}

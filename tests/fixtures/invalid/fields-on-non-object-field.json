@@ -1,0 +1,37 @@
+{
+  "x-test": {
+    "violates": "only an object field declares fields",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/fields",
+    "why": "Nested fields under a scalar describe a structure the output does not have. A consumer generating a type from this produces a record whose shape can never be populated."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "fields": [
+            {
+              "name": "first",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "x-test": {
+    "violates": "output_kind opaque requires media_type",
+    "detect": "schema",
+    "at": "/commands/0",
+    "why": "Opaque is the kind that switches off the structured-output rules, so it must pay for itself by saying what the bytes are. A kind with no safe default has to be stated explicitly."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "completions",
+      "description": "Generate a shell completion script.",
+      "effects": "read_only",
+      "output_kind": "opaque"
+    }
+  ],
+  "errors": [
+    {
+      "kind": "usage",
+      "exit_code": 2
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "x-test": {
+    "violates": "idempotency_key_arg is only meaningful on a non_idempotent command",
+    "detect": "schema",
+    "at": "/commands/0/idempotency_key_arg",
+    "why": "Declaring a key on an already-safe command suggests the author misread what the key is for, and a consumer might infer the command is riskier than it is."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {},
+      "idempotency_key_arg": "--request-id",
+      "args": [
+        {
+          "name": "--request-id",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

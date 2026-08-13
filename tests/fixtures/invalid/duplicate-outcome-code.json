@@ -1,0 +1,38 @@
+{
+  "x-test": {
+    "violates": "ambiguous-exit-code",
+    "detect": "rules",
+    "at": "/outcomes/1",
+    "why": "The other half of the rule. Two successful outcomes answering with the same code are unresolvable: unlike two error kinds, which a consumer can still separate by reading the structured kind, there is nothing on the success path to read."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "check",
+      "description": "Report drift.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "usage",
+      "exit_code": 2
+    }
+  ],
+  "outcomes": [
+    {
+      "code": 1,
+      "name": "drift_found",
+      "description": "Drift was detected."
+    },
+    {
+      "code": 1,
+      "name": "drift_repaired",
+      "description": "Drift was detected and corrected."
+    }
+  ]
+}

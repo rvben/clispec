@@ -1,0 +1,26 @@
+{
+  "x-test": {
+    "violates": "a command path is single-space-separated with no leading, trailing or doubled spaces",
+    "detect": "schema",
+    "at": "/commands/0/name",
+    "why": "The flat encoding is only unambiguous if splitting on a single space recovers the exact segments. This is what lets v0.3 drop the nested layout without introducing a parsing rule."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "sites  use",
+      "description": "Select the active site.",
+      "effects": "idempotent",
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "conflict",
+      "exit_code": 5
+    }
+  ]
+}

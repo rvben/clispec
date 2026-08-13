@@ -1,0 +1,32 @@
+{
+  "x-test": {
+    "violates": "output_kind stream cannot declare cardinality",
+    "detect": "schema",
+    "at": "/commands/0/cardinality",
+    "why": "A stream runs until the consumer stops reading, so there is no record count to declare. `bounded` would promise an end the producer does not control, and `unbounded` would trigger the pagination requirement, which a stream answers with time and count controls instead. Both readings are wrong, so neither is allowed."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "logs tail",
+      "description": "Stream log records until interrupted.",
+      "effects": "read_only",
+      "output_kind": "stream",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "message",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

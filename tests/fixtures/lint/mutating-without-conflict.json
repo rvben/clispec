@@ -1,0 +1,24 @@
+{
+  "x-test": {
+    "expects": "mutating-without-conflict",
+    "why": "Deliberately a lint and not a rule. Requiring `conflict` from every mutating tool would falsely penalise the ones that genuinely have no conflicting state to meet, which is the class of bogus failure v0.3 exists to remove. The document is conformant; the warning only asks the author to confirm the omission was a decision."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "kill",
+      "description": "Stop the process holding a port.",
+      "effects": "idempotent",
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

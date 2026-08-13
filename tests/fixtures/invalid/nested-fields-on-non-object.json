@@ -1,0 +1,40 @@
+{
+  "x-test": {
+    "violates": "only an object type node declares fields",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/items/fields",
+    "why": "Completes the recursion: an array of scalars that also lists nested fields describes two incompatible element shapes, and the consumer has no rule for choosing between them."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "tags",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "fields": [
+              {
+                "name": "label",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

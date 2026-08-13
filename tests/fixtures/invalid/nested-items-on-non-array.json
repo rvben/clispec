@@ -1,0 +1,35 @@
+{
+  "x-test": {
+    "violates": "only an array type node declares items",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/items/items",
+    "why": "The same stale-key mistake as items-on-non-array-field, one level down. Pinning it here proves the recursive type node carries the rules rather than only the outermost field."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "ports",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "items": { "type": "string" }
+          }
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

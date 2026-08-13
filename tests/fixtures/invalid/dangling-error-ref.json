@@ -1,0 +1,30 @@
+{
+  "x-test": {
+    "violates": "error-ref-resolves",
+    "detect": "rules",
+    "at": "/commands/0/errors/1",
+    "why": "Referential integrity across arrays is not expressible in JSON Schema. A per-command error list that names a kind the tool never emits sends an agent to write a handler for a branch that can never run."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {},
+      "errors": [
+        "not_found",
+        "auth"
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

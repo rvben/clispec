@@ -1,0 +1,31 @@
+{
+  "x-test": {
+    "violates": "field type must come from the closed set",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/type",
+    "why": "v0.2 allowed \"integer | null\" and \"object[]\" as type strings, which no consumer can parse reliably. v0.3 replaces the union convention with the nullable flag and the items node."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "uptime_seconds",
+          "type": "integer | null"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

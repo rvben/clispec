@@ -1,0 +1,61 @@
+{
+  "x-test": {
+    "purpose": "A read-only tool whose results are bounded by the caller's own input. Under v0.2 a tool of this shape failed all three Bounded Output checks and the conflict-kind check despite being correct; under v0.3 it is fully conformant with no pagination, no --fields and no conflict kind. This is the fixture that pins the narrowed Principle 6."
+  },
+  "clispec": "0.3",
+  "name": "whatport",
+  "version": "0.4.1",
+  "description": "Find the process listening on a port.",
+  "output": { "tty": "text", "piped": "json" },
+  "global_args": [
+    {
+      "name": "--output",
+      "type": "string",
+      "enum": ["auto", "text", "json"],
+      "default": "auto",
+      "description": "Output format; auto detects TTY."
+    }
+  ],
+  "commands": [
+    {
+      "name": "inspect",
+      "description": "Show the listeners on a port.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "args": [
+        { "name": "port", "type": "integer", "required": true }
+      ],
+      "output_fields": [
+        { "name": "port", "type": "integer" },
+        { "name": "proto", "type": "string", "enum": ["tcp", "udp"] },
+        { "name": "pid", "type": "integer" },
+        { "name": "process", "type": "string" }
+      ],
+      "errors": ["not_found"],
+      "example": { "args": ["22"] }
+    },
+    {
+      "name": "list",
+      "description": "List every listening socket on this machine.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        { "name": "port", "type": "integer" },
+        { "name": "proto", "type": "string", "enum": ["tcp", "udp"] },
+        { "name": "pid", "type": "integer" },
+        { "name": "process", "type": "string" }
+      ]
+    },
+    {
+      "name": "schema",
+      "description": "Print this clispec contract as JSON.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": { "$ref": "https://clispec.dev/schema/v0.3.json" }
+    }
+  ],
+  "errors": [
+    { "kind": "not_found", "exit_code": 4, "retryable": false, "description": "Nothing is listening on that port." },
+    { "kind": "usage", "exit_code": 2, "retryable": false, "description": "The port is not in 1-65535." }
+  ]
+}

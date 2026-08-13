@@ -1,0 +1,31 @@
+{
+  "x-test": {
+    "violates": "an array field must declare its items type",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0",
+    "why": "\"type\": \"array\" alone tells a consumer nothing about what it will find inside, which is exactly the gap that made v0.2's output_fields too weak to plan against."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "tags",
+          "type": "array"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

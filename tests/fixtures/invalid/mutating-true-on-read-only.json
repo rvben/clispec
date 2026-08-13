@@ -1,0 +1,27 @@
+{
+  "x-test": {
+    "violates": "deprecated mutating must agree with effects",
+    "detect": "schema",
+    "at": "/commands/0/effects",
+    "why": "The mirror of mutating-contradicts-effects, and the more dangerous direction: a v0.2 consumer reads `mutating: true` and asks for confirmation, while a v0.3 consumer reads `read_only` and runs it unattended. Both fields drive trust, so disagreement is a hard error rather than a lint."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "purge",
+      "description": "Delete every expired record.",
+      "effects": "read_only",
+      "mutating": true,
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "conflict",
+      "exit_code": 5
+    }
+  ]
+}

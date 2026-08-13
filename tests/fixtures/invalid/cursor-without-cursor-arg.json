@@ -1,0 +1,42 @@
+{
+  "x-test": {
+    "violates": "pagination style cursor requires cursor_arg",
+    "detect": "schema",
+    "at": "/commands/0/pagination",
+    "why": "Naming the response field the token arrives in only describes half the loop. Without an argument to send it back in, the consumer holds a token it can do nothing with, and the second page is unreachable. Declared pagination that cannot be driven is the failure this rule exists to catch."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List every event ever recorded.",
+      "effects": "read_only",
+      "cardinality": "unbounded",
+      "stdout_schema": {},
+      "pagination": {
+        "style": "cursor",
+        "cursor_field": "next_cursor",
+        "limit_arg": "--limit"
+      },
+      "fields_arg": "--fields",
+      "args": [
+        {
+          "name": "--limit",
+          "type": "integer"
+        },
+        {
+          "name": "--fields",
+          "type": "string[]"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

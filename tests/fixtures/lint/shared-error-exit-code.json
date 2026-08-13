@@ -1,0 +1,44 @@
+{
+  "x-test": {
+    "expects": "shared-error-exit-code",
+    "why": "This is the dotdiff shape, and pinning it as conformant is the point. Five of the seven published v0.2 tools group several error kinds under one exit code, and dotdiff's own help text advertises it as the design: 2 means a bad input, and stderr says whether that was a parse failure or an unreadable file. A rule failing this would be the Bounded Output mistake again, so it warns and passes."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "diff",
+      "description": "Compare two documents.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "parse",
+      "exit_code": 2,
+      "retryable": false,
+      "description": "An input could not be read as the format it claimed."
+    },
+    {
+      "kind": "io",
+      "exit_code": 2,
+      "retryable": false,
+      "description": "An input file could not be read."
+    },
+    {
+      "kind": "usage",
+      "exit_code": 3,
+      "retryable": false
+    }
+  ],
+  "outcomes": [
+    {
+      "code": 1,
+      "name": "differences_found",
+      "description": "The inputs differ; the change list is on stdout."
+    }
+  ]
+}

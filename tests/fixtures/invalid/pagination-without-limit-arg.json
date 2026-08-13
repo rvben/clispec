@@ -1,0 +1,41 @@
+{
+  "x-test": {
+    "violates": "pagination style cursor and offset require limit_arg",
+    "detect": "schema",
+    "at": "/commands/0/pagination",
+    "why": "Paging without a page size leaves the size of every response to the producer, so the first call can still return the dump Principle 6 exists to prevent. The limit is the control the consumer needs before it has read anything at all."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List every event ever recorded.",
+      "effects": "read_only",
+      "cardinality": "unbounded",
+      "stdout_schema": {},
+      "pagination": {
+        "style": "offset",
+        "offset_arg": "--offset"
+      },
+      "fields_arg": "--fields",
+      "args": [
+        {
+          "name": "--offset",
+          "type": "integer"
+        },
+        {
+          "name": "--fields",
+          "type": "string[]"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

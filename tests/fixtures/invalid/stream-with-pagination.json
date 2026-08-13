@@ -1,0 +1,47 @@
+{
+  "x-test": {
+    "violates": "output_kind stream cannot declare pagination",
+    "detect": "schema",
+    "at": "/commands/0/pagination",
+    "why": "Pages are how a consumer walks a result that already exists. A stream is bounded from the other end: the consumer reads until it has enough and closes the pipe, and asks for less with `--since` or `--tail`. A cursor into a sequence that has no end describes a loop that never terminates."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "logs tail",
+      "description": "Stream log records until interrupted.",
+      "effects": "read_only",
+      "output_kind": "stream",
+      "pagination": {
+        "style": "cursor",
+        "cursor_field": "next_cursor",
+        "cursor_arg": "--cursor",
+        "limit_arg": "--limit"
+      },
+      "args": [
+        {
+          "name": "--cursor",
+          "type": "string"
+        },
+        {
+          "name": "--limit",
+          "type": "integer"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "message",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

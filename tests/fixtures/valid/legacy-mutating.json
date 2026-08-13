@@ -1,0 +1,30 @@
+{
+  "x-test": {
+    "purpose": "A document carrying the deprecated `mutating` boolean alongside `effects`, with the two in agreement. v0.3 keeps accepting `mutating` so a tool can emit both during the window where some consumers still read v0.2, notably permission systems that auto-approve on `mutating: false`."
+  },
+  "clispec": "0.3",
+  "name": "legacytool",
+  "version": "3.1.0",
+  "commands": [
+    {
+      "name": "status",
+      "description": "Show current state.",
+      "effects": "read_only",
+      "mutating": false,
+      "cardinality": "single",
+      "output_fields": [{ "name": "state", "type": "string" }]
+    },
+    {
+      "name": "apply",
+      "description": "Converge to the declared state.",
+      "effects": "idempotent",
+      "mutating": true,
+      "cardinality": "single",
+      "output_fields": [{ "name": "changed", "type": "boolean" }]
+    }
+  ],
+  "errors": [
+    { "kind": "conflict", "exit_code": 5, "retryable": false },
+    { "kind": "usage", "exit_code": 2, "retryable": false }
+  ]
+}

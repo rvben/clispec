@@ -1,0 +1,39 @@
+{
+  "x-test": {
+    "detect": "schema",
+    "violates": "data-output-shape",
+    "at": "/commands/0",
+    "why": "Principle 2 promises a consumer can discover output shapes without invoking anything. Silence is invalid, while the projector beside it demonstrates the explicit escape hatch for a shape that depends on caller input: an empty stdout_schema."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "config get",
+      "description": "Print one configuration value.",
+      "effects": "read_only",
+      "cardinality": "single"
+    },
+    {
+      "name": "project",
+      "description": "Project a JSON document down to the paths given.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": {},
+      "args": [
+        {
+          "name": "path",
+          "type": "string[]",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "x-test": {
+    "violates": "subcommands is retired in v0.3",
+    "detect": "schema",
+    "at": "/commands/0/subcommands",
+    "why": "Unknown keys are permitted, but this one had a meaning that is gone. A consumer reading only the flat list would silently miss every nested command, so an unmigrated document must fail loudly."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "sites",
+      "description": "Manage sites.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": {},
+      "subcommands": [
+        {
+          "name": "use",
+          "description": "Select the active site.",
+          "effects": "idempotent",
+          "cardinality": "single",
+      "stdout_schema": {}
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

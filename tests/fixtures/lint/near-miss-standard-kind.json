@@ -1,0 +1,24 @@
+{
+  "x-test": {
+    "expects": "near-miss-standard-kind",
+    "why": "Custom error kinds are allowed, so `not_fund` cannot be rejected. But a kind one edit from a reserved one is far more likely to be a typo than a deliberate name, and a generic handler branching on `not_found` would silently never fire. The same edit-distance test that catches a misspelled key catches a misspelled kind."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "get",
+      "description": "Fetch one service.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_fund",
+      "exit_code": 4
+    }
+  ]
+}

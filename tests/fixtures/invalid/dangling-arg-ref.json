@@ -1,0 +1,42 @@
+{
+  "x-test": {
+    "violates": "arg-ref-resolves",
+    "detect": "rules",
+    "at": "/commands/0/fields_arg",
+    "why": "A capability field naming an argument the command does not accept is worse than not declaring the capability: the consumer builds an invocation that cannot parse."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List every event ever recorded.",
+      "effects": "read_only",
+      "cardinality": "unbounded",
+      "stdout_schema": {},
+      "pagination": {
+        "style": "offset",
+        "limit_arg": "--limit",
+        "offset_arg": "--offset"
+      },
+      "fields_arg": "--fields",
+      "args": [
+        {
+          "name": "--limit",
+          "type": "integer"
+        },
+        {
+          "name": "--offset",
+          "type": "integer"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

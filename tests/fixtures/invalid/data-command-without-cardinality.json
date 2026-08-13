@@ -1,0 +1,25 @@
+{
+  "x-test": {
+    "violates": "cardinality is required on a data command",
+    "detect": "schema",
+    "at": "/commands/0",
+    "why": "Cardinality has no safe default: guessing bounded hides an unbounded dump, and guessing unbounded forces pagination on tools that need none. The producer knows; it must say."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

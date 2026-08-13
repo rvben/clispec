@@ -1,0 +1,26 @@
+{
+  "x-test": {
+    "violates": "every error kind must declare an exit_code",
+    "detect": "schema",
+    "at": "/errors/0",
+    "why": "Branching on the exit code alone, before parsing anything, is the cheapest thing a consumer can do. It only works if the mapping is total."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "description": "Resource does not exist."
+    }
+  ]
+}

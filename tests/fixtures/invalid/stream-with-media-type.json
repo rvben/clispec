@@ -1,0 +1,27 @@
+{
+  "x-test": {
+    "violates": "output_kind stream cannot declare media_type",
+    "detect": "schema",
+    "at": "/commands/0/media_type",
+    "why": "A stream is framed by `stream_format`, which already says how to find the record boundaries. A media type alongside it describes the same bytes twice and the two can disagree, leaving a consumer no way to decide which one to parse by."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "watch",
+      "description": "Emit events as they happen.",
+      "effects": "read_only",
+      "output_kind": "stream",
+      "stream_format": "jsonl",
+      "media_type": "application/x-ndjson"
+    }
+  ],
+  "errors": [
+    {
+      "kind": "unavailable",
+      "exit_code": 6
+    }
+  ]
+}

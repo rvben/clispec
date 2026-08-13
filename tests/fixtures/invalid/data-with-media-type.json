@@ -1,0 +1,32 @@
+{
+  "x-test": {
+    "violates": "output_kind data cannot declare media_type",
+    "detect": "schema",
+    "at": "/commands/0/media_type",
+    "why": "A data command's stdout is a structured document in whichever format the consumer selected, so its media type is a property of the invocation rather than of the command. Declaring one states that the bytes are fixed, which is the opposite of what `-o json` and `-o yaml` mean, and it is how a command that is really opaque gets published as data."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "export",
+      "description": "Export the current configuration.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "media_type": "application/gzip",
+      "output_fields": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

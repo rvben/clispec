@@ -1,0 +1,21 @@
+{
+  "x-test": {
+    "expects": "near-miss-key",
+    "detect": "lint",
+    "why": "The motivating case for closing the schema was catching `mutatng`. This document is structurally conformant and passes every rule, so a closed schema is not needed to catch it: an edit-distance lint does, while genuine extensions keep validating. Compare valid/full.json, which carries x- keys and an extensions object and produces no warning."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "apply",
+      "description": "Converge to the declared state.",
+      "effects": "idempotent",
+      "mutatng": true,
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [{ "kind": "conflict", "exit_code": 5 }]
+}

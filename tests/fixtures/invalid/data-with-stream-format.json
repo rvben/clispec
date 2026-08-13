@@ -1,0 +1,32 @@
+{
+  "x-test": {
+    "violates": "output_kind data cannot declare stream_format",
+    "detect": "schema",
+    "at": "/commands/0/stream_format",
+    "why": "Record framing is what distinguishes a stream from a document. A data command carrying it tells a consumer to read line by line from something that is only complete at the end, and the two readings disagree about what one record is. If the records really do arrive incrementally, the command is a stream and should say so."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "events list",
+      "description": "List recent events.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stream_format": "ndjson",
+      "output_fields": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

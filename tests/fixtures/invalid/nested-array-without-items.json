@@ -1,0 +1,32 @@
+{
+  "x-test": {
+    "violates": "an array type node must declare its items type",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/items",
+    "why": "The typing rules have to hold at every depth, not just at the top of a field. An array of arrays that stops describing itself one level down is exactly as unplannable as an untyped field, and nesting is where a hand-written schema is most likely to give up."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "matrix",
+          "type": "array",
+          "items": { "type": "array" }
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

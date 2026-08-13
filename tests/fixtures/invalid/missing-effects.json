@@ -1,0 +1,25 @@
+{
+  "x-test": {
+    "violates": "effects is required on every command",
+    "detect": "schema",
+    "at": "/commands/0",
+    "why": "In v0.2 an absent mutating marker meant unknown, and consumers were told not to infer safety from it. A producer describing its own tool always knows, so v0.3 removes the option to stay silent."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

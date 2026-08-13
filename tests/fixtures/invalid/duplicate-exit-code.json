@@ -1,0 +1,34 @@
+{
+  "x-test": {
+    "violates": "ambiguous-exit-code",
+    "detect": "rules",
+    "at": "/outcomes/0",
+    "why": "JSON Schema cannot express uniqueness of a field across two sibling arrays. A consumer that sees exit 1 here cannot tell a rate-limit failure from a clean diff result, which is the exact confusion the outcomes array was added to prevent. Note the narrowness: two error kinds sharing a code is a lint, not this, because both answers are still failures."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "check",
+      "description": "Report drift.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "rate_limit",
+      "exit_code": 1,
+      "retryable": true
+    }
+  ],
+  "outcomes": [
+    {
+      "code": 1,
+      "name": "drift_found",
+      "description": "Drift was detected."
+    }
+  ]
+}

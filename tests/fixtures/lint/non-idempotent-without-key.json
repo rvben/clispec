@@ -1,0 +1,23 @@
+{
+  "x-test": {
+    "expects": "non-idempotent-without-key",
+    "detect": "lint",
+    "why": "Conformant, but it leaves an agent that times out mid-call with no safe move: it cannot retry and cannot tell whether the first call landed. A warning rather than an error, because some operations genuinely cannot offer a key."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "notify send",
+      "description": "Send a notification.",
+      "effects": "non_idempotent",
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    { "kind": "conflict", "exit_code": 5 },
+    { "kind": "unavailable", "exit_code": 9, "retryable": true }
+  ]
+}

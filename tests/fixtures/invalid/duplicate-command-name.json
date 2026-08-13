@@ -1,0 +1,33 @@
+{
+  "x-test": {
+    "violates": "unique-command-names",
+    "detect": "rules",
+    "at": "/commands/1",
+    "why": "Two entries with the same path make the second unaddressable, and a consumer picking the first silently gets whichever contract was written down first."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "stdout_schema": {}
+    },
+    {
+      "name": "list",
+      "description": "List services, again.",
+      "effects": "read_only",
+      "cardinality": "single",
+      "stdout_schema": {}
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

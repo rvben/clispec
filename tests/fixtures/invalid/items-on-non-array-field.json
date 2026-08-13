@@ -1,0 +1,32 @@
+{
+  "x-test": {
+    "violates": "only an array field declares items",
+    "detect": "schema",
+    "at": "/commands/0/output_fields/0/items",
+    "why": "A scalar carrying an items node means the author changed the type and left the old shape behind. The pointer must name the stale key rather than the whole field, or a large output_fields block gives the author nothing to search for."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [
+        {
+          "name": "port",
+          "type": "integer",
+          "items": { "type": "string" }
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "kind": "not_found",
+      "exit_code": 4
+    }
+  ]
+}

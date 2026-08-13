@@ -1,0 +1,20 @@
+{
+  "x-test": {
+    "purpose": "The smallest conformant document. Positive control: if this fails, the validator is broken, not the fixture. A data command must describe its output; this one uses the compact `output_fields` form."
+  },
+  "clispec": "0.3",
+  "name": "mytool",
+  "version": "1.0.0",
+  "commands": [
+    {
+      "name": "list",
+      "description": "List services.",
+      "effects": "read_only",
+      "cardinality": "bounded",
+      "output_fields": [{ "name": "name", "type": "string" }]
+    }
+  ],
+  "errors": [
+    { "kind": "not_found", "exit_code": 4, "retryable": false }
+  ]
+}

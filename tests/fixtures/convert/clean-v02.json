@@ -1,0 +1,53 @@
+{
+  "x-test": {
+    "assume_cardinality": "bounded",
+    "expects_review": [],
+    "expects_commands": ["list", "get"],
+    "expects_clean": true,
+    "expects_preserved": {
+      "/x-registry": "https://registry.example.com/cleantool",
+      "/commands/1/x-since": "1.2.0",
+      "/commands/0/output_fields/1/x-unit": "label",
+      "/outcomes/0/x-tui-color": "yellow"
+    },
+    "why": "The other end of the converter's contract. A v0.2 document that already answered everything v0.3 asks (no mutating commands, no bare arrays, reserved error kinds, and a cardinality supplied in bulk) must convert to a conformant v0.3 document with nothing left to review. Without this, an empty review list would prove nothing, since a converter that never reviewed anything would pass the other fixture's checks just as well. It also carries an extension key at each of the four levels the converter rebuilds an object at (document, command, output field, outcome), because rebuilding is where a key gets dropped: neither version restricts what else a document may carry, so discarding one would be the converter silently editing a published contract."
+  },
+  "clispec": "0.2",
+  "name": "cleantool",
+  "version": "1.4.2",
+  "description": "A read-only v0.2 tool with nothing left unsaid.",
+  "x-registry": "https://registry.example.com/cleantool",
+  "global_args": [
+    { "name": "--output", "short": "o", "type": "string", "enum": ["auto", "json", "text"], "default": "auto", "description": "Output format." }
+  ],
+  "commands": [
+    {
+      "name": "list",
+      "description": "List known records.",
+      "mutating": false,
+      "output_fields": [
+        { "name": "id", "type": "string", "description": "Stable identifier." },
+        { "name": "tags", "type": "string[]", "description": "Free-form labels.", "x-unit": "label" },
+        { "name": "score", "type": "number | null", "description": "Absent until computed." }
+      ]
+    },
+    {
+      "name": "get",
+      "description": "Show one record.",
+      "mutating": false,
+      "x-since": "1.2.0",
+      "args": [{ "name": "id", "type": "string", "required": true, "description": "Record to show." }],
+      "output_fields": [
+        { "name": "id", "type": "string" },
+        { "name": "detail", "type": "object" }
+      ]
+    }
+  ],
+  "errors": [
+    { "kind": "usage", "exit_code": 2, "retryable": false, "description": "The invocation was rejected." },
+    { "kind": "not_found", "exit_code": 4, "retryable": false, "description": "No such record." }
+  ],
+  "outcomes": [
+    { "code": 3, "name": "no_records", "description": "The query was valid and matched nothing.", "x-tui-color": "yellow" }
+  ]
+}
