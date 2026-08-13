@@ -18,6 +18,7 @@ the prose that says what the schema means. Freezing only the schema would leave
 the half of the specification that JSON Schema cannot express free to drift.
 
     python tools/freeze.py            verify (what CI runs)
+    python tools/freeze.py --site     verify the built site serves every entry
     python tools/freeze.py --update   re-record, refusing to move a frozen hash
 """
 
@@ -30,6 +31,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS = REPO_ROOT / "docs"
+SITE = REPO_ROOT / "site"
 CHECKSUMS = DOCS / "CHECKSUMS.txt"
 
 # Everything a published version consists of. Paths are recorded relative to
@@ -159,6 +161,49 @@ def verify() -> int:
     return 0
 
 
+def verify_site() -> int:
+    """Every recorded artifact is served, at its recorded path, byte for byte.
+
+    CHECKSUMS.txt tells a reader that each line can be checked against the live
+    site. Rendering a version's prose as a page is not enough to keep that
+    promise: what the hash covers is the source, so the source has to be
+    reachable at the URL the line names.
+    """
+    entries = read_checksums()
+    problems: list[str] = []
+
+    if not SITE.exists():
+        print(f"  ERROR {SITE.relative_to(REPO_ROOT)} does not exist; run `make build`")
+        return 1
+
+    for entry in entries:
+        path = SITE / entry.name
+        if not path.exists():
+            problems.append(
+                f"{entry.name}: recorded in CHECKSUMS.txt but not published; "
+                "the site would serve 404 for a URL the checksum file names"
+            )
+            continue
+        actual = sha256(path)
+        if actual != entry.digest:
+            problems.append(
+                f"{entry.name}: published bytes differ from the recorded hash\n"
+                f"      recorded {entry.digest}\n"
+                f"      built    {actual}"
+            )
+            continue
+        print(f"  ok   published  {entry.name}")
+
+    if problems:
+        print()
+        for p in problems:
+            print(f"  ERROR {p}")
+        print(f"\n{len(problems)} problem(s)")
+        return 1
+    print(f"\n{len(entries)} artifact(s) published at their recorded paths")
+    return 0
+
+
 def update() -> int:
     entries = {e.name: e for e in read_checksums()}
     out: list[Entry] = []
@@ -212,8 +257,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="re-record checksums; a frozen schema whose bytes moved is an error",
     )
+    parser.add_argument(
+        "--site",
+        action="store_true",
+        help="check the built site serves every recorded artifact at its path",
+    )
     args = parser.parse_args(argv)
-    return update() if args.update else verify()
+    if args.update:
+        return update()
+    return verify_site() if args.site else verify()
 
 
 if __name__ == "__main__":

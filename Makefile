@@ -41,6 +41,10 @@ checksums-update: ## Re-record checksums (refuses to move a frozen one)
 
 build: ## Build the site
 	$(ZENSICAL) build --clean
+	@# A frozen version's prose is a published artifact, not only a page. The
+	@# checksum covers the source, so the source is served beside the rendering.
+	cp docs/spec/*.md site/spec/
+	$(PY) tools/freeze.py --site
 
 serve: ## Serve the site locally
 	$(ZENSICAL) serve
