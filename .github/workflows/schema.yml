@@ -1,0 +1,20 @@
+name: Schema
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-v03:
+    name: Canonical v0.3 schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON Schema document
+        run: |
+          python -m json.tool docs/schema/v0.3.json >/dev/null
+          jq -e '."$id" == "https://clispec.dev/schema/v0.3.json" and .title == "The CLI Spec - Schema v0.3"' docs/schema/v0.3.json
