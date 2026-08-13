@@ -1,0 +1,23 @@
+# Checksums for every published part of The CLI Spec: the schemas tools
+# validate against, and the prose that says what those schemas mean.
+#
+# Paths are relative to https://clispec.dev/, so any line here can be checked
+# against the live site.
+#
+# frozen     The bytes are final. That URL will serve exactly this document for
+#            as long as the site exists, so a tool that validated against it
+#            stays valid. Changing a frozen version is an error, not a
+#            decision: publish the next version.
+# candidate  Still being written. The hash moves; nothing should depend on it
+#            yet beyond experimentation.
+#
+# Verified by `make checksums`, which CI runs on every push. `make
+# checksums-update` re-records candidates and refuses to move a frozen hash; if
+# a frozen artifact genuinely has to change, editing the hash here by hand is
+# the deliberate act that records the decision.
+#
+# status     sha256                                                            path
+frozen     802fe763f277bd33bd4622a30d31ab27fb04fd1bba34f953cf8619f90fa117c1  schema/v0.1.json
+frozen     7c72c6a762be27102ab52e900dad288c44004b9e295333af81d236235fb8feb3  schema/v0.2.json
+candidate  ca0a051fbd6e5b464eefde009bf1ed2a2d53b896552e7a40a4fe02d307f4eff2  schema/v0.3.json
+frozen     6ef8dc5b05d9bae1e8b1eb811ad34bcc22a4bad014dba6237b761b25f7a65fa7  spec/v0.2.md

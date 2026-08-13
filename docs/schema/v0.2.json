@@ -25,12 +25,17 @@
       "type": "string"
     },
     "global_args": {
-      "description": "Arguments accepted by every command (e.g. --output, --quiet, --profile). Listed once here instead of being repeated or omitted per command.",
+      "description": "Arguments accepted by every command (e.g. --output, --quiet, --profile). Listed once here instead of being repeated or omitted per command. For portable invocation, consumers place these arguments before the command path.",
       "type": "array",
       "items": { "$ref": "#/$defs/arg" }
     },
+    "command_layout": {
+      "description": "How command paths are encoded. In `flat` layout, every entry is top-level, `name` is the complete space-separated command path, and `subcommands` is omitted. In `nested` layout, each `name` is one path segment and consumers join ancestor names with spaces. Producers MUST NOT mix layouts. If omitted, consumers infer `nested` when any `subcommands` field is present and `flat` otherwise.",
+      "type": "string",
+      "enum": ["flat", "nested"]
+    },
     "commands": {
-      "description": "Commands the tool exposes. Subcommands nest via the `subcommands` field.",
+      "description": "Commands the tool exposes, encoded according to `command_layout`. Consumers MUST support both layouts.",
       "type": "array",
       "items": { "$ref": "#/$defs/command" }
     },
@@ -53,12 +58,40 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["command_layout"],
+        "properties": { "command_layout": { "const": "flat" } }
+      },
+      "then": {
+        "properties": {
+          "commands": { "items": { "$ref": "#/$defs/flat_command" } }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["command_layout"],
+        "properties": { "command_layout": { "const": "nested" } }
+      },
+      "then": {
+        "properties": {
+          "commands": { "items": { "$ref": "#/$defs/nested_command" } }
+        }
+      }
+    }
+  ],
   "$defs": {
     "command": {
       "type": "object",
       "required": ["name"],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
+        "name": {
+          "description": "Command path. In flat layout this is the complete space-separated path; in nested layout this is one path segment relative to its parent.",
+          "type": "string",
+          "minLength": 1
+        },
         "description": { "type": "string" },
         "mutating": {
           "description": "Whether the command modifies state. Omitted means unknown - consumers MUST NOT assume an unmarked command is read-only. `mutating: false` is a contract: consumers may grant trust (e.g. auto-approval) based on it.",
@@ -79,6 +112,7 @@
           "items": { "$ref": "#/$defs/field" }
         },
         "subcommands": {
+          "description": "Child command entries. Used only with nested command layout.",
           "type": "array",
           "items": { "$ref": "#/$defs/command" }
         },
@@ -98,6 +132,30 @@
           }
         }
       }
+    },
+    "flat_command": {
+      "allOf": [
+        { "$ref": "#/$defs/command" },
+        {
+          "not": { "required": ["subcommands"] },
+          "properties": {
+            "name": { "pattern": "^[^\\s]+( [^\\s]+)*$" }
+          }
+        }
+      ]
+    },
+    "nested_command": {
+      "allOf": [
+        { "$ref": "#/$defs/command" },
+        {
+          "properties": {
+            "name": { "pattern": "^[^\\s]+$" },
+            "subcommands": {
+              "items": { "$ref": "#/$defs/nested_command" }
+            }
+          }
+        }
+      ]
     },
     "arg": {
       "type": "object",
