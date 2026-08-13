@@ -1,37 +1,46 @@
-name: Documentation
+name: CI
 
+# No path filters. The spec, the schema, the fixture suite and the tooling are
+# one artifact now: a change to tests/ can invalidate docs/, and a filter that
+# skips the run is indistinguishable from a run that passed.
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - 'zensical.toml'
-      - '.github/workflows/docs.yml'
   pull_request:
-    paths:
-      - 'docs/**'
-      - 'zensical.toml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v10
 
-      - name: Install Zensical
-        run: pip install zensical
+      # Each step is a make target and nothing else, so every failure here
+      # reproduces with one command on a laptop.
+      - name: No frozen schema has changed
+        run: make checksums
+
+      - name: Normative fixture suite
+        run: make test
+
+      - name: The fixture suite can still fail
+        run: make mutate
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
 
       - name: Build documentation
-        run: zensical build --clean
+        run: make build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

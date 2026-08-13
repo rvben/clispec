@@ -4,7 +4,7 @@ site_description = "6 principles for building CLI tools that work for humans, sc
 site_author = "Ruben Jongejan"
 site_url = "https://clispec.dev/"
 copyright = """
-Copyright &copy; 2026 Ruben Jongejan — <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+Copyright &copy; 2026 Ruben Jongejan - <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
 """
 
 repo_url = "https://github.com/rvben/clispec"
@@ -19,6 +19,10 @@ nav = [
     { "Python (click)" = "guide/python.md" },
     { "Verifying Compliance" = "guide/verifying.md" },
     { "CI/CD" = "guide/cicd.md" },
+  ]},
+  { "Versions" = "versions.md" },
+  { "Archive" = [
+    { "v0.2" = "spec/v0.2.md" },
   ]},
 ]
 
