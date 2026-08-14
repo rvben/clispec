@@ -44,12 +44,24 @@ jobs:
           MINIMUM_RELEASE_ASSETS: ${{ inputs.minimum-release-assets }}
         shell: bash
         run: |
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
-          release="$(curl --fail --silent --show-error --retry 3 \
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100"
+          releases="$(curl --fail --silent --show-error --retry 3 \
             --header 'Accept: application/vnd.github+json' \
             --header "Authorization: Bearer $GH_TOKEN" \
             --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$api")"
+
+          release="$(jq -c '
+            [.[] | select(
+              .draft == false and
+              .prerelease == false and
+              (.tag_name | test("^v?[0-9]+[.][0-9]+[.][0-9]+([.-][0-9A-Za-z.-]+)?$"))
+            )][0] // empty
+          ' <<<"$releases")"
+          if [[ -z "$release" ]]; then
+            echo "::error::No stable semantic-version release found"
+            exit 1
+          fi
 
           jq . <<<"$release"
           jq -e --argjson minimum "$MINIMUM_RELEASE_ASSETS" '
@@ -145,8 +157,9 @@ jobs:
             --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$api")"
           formula="$(jq -r .content <<<"$response" | tr -d '\n' | base64 --decode)"
-          if ! grep -Eq "^[[:space:]]*version [\"']${RELEASE_VERSION}[\"']" <<<"$formula"; then
-            echo "::error::$TAP/Formula/$FORMULA.rb does not declare version $RELEASE_VERSION"
+          if ! grep -Eq "^[[:space:]]*version [\"']${RELEASE_VERSION}[\"']" <<<"$formula" &&
+             ! grep -Fq "/releases/download/v${RELEASE_VERSION}/" <<<"$formula"; then
+            echo "::error::$TAP/Formula/$FORMULA.rb does not reference version $RELEASE_VERSION"
             exit 1
           fi
           echo "- Homebrew: \`$FORMULA@$RELEASE_VERSION\`" >> "$GITHUB_STEP_SUMMARY"
