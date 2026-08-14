@@ -1,0 +1,87 @@
+name: clispec conformance
+
+on:
+  workflow_call:
+    inputs:
+      binary:
+        description: Path to the built CLI executable
+        required: true
+        type: string
+      build-system:
+        description: Supported build system (rust or uv)
+        required: false
+        default: rust
+        type: string
+      clispec-version:
+        description: Exact clispec scorer version
+        required: false
+        default: 0.3.0
+        type: string
+      self-score:
+        description: Use the built binary itself as the scorer
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: 24/24 Excellent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        env:
+          BUILD_SYSTEM: ${{ inputs.build-system }}
+        shell: bash
+        run: |
+          case "$BUILD_SYSTEM" in
+            rust|uv) ;;
+            *)
+              echo "::error::Unsupported build system: $BUILD_SYSTEM"
+              exit 2
+              ;;
+          esac
+
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        if: inputs.build-system == 'uv'
+        uses: astral-sh/setup-uv@v10.0.1
+
+      - name: Build Rust CLI
+        if: inputs.build-system == 'rust'
+        run: cargo build --locked
+
+      - name: Install Python CLI
+        if: inputs.build-system == 'uv'
+        run: uv sync --locked
+
+      - name: Install clispec scorer
+        if: inputs.self-score != true
+        env:
+          CLISPEC_VERSION: ${{ inputs.clispec-version }}
+        run: cargo install clispec --version "$CLISPEC_VERSION" --locked
+
+      - name: Require clispec v0.3 Excellent
+        env:
+          CLI_BINARY: ${{ inputs.binary }}
+          SELF_SCORE: ${{ inputs.self-score }}
+        shell: bash
+        run: |
+          if [[ ! -x "$CLI_BINARY" ]]; then
+            echo "::error::CLI binary is missing or not executable: $CLI_BINARY"
+            exit 2
+          fi
+
+          scorer=clispec
+          if [[ "$SELF_SCORE" == "true" ]]; then
+            scorer="$CLI_BINARY"
+          fi
+
+          report="$("$scorer" score "$CLI_BINARY" --output json)"
+          jq . <<<"$report"
+          jq -e '.score == 24 and .max == 24 and .grade == "Excellent"' <<<"$report"

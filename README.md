@@ -42,6 +42,20 @@ CI runs these targets and nothing else, so a green pipeline is reproducible
 locally. Everything runs through `uv run --with` at pinned versions, so there is
 no install step to keep in sync.
 
+## Reusable CI
+
+The workflows in [`.github/workflows`](.github/workflows) provide two centralized
+checks for CLI repositories:
+
+- `conformance.yml` builds a Rust or uv-managed CLI and requires a clispec v0.3
+  score of 24/24 (Excellent).
+- `published-artifacts.yml` confirms that the latest GitHub release agrees with
+  crates.io, PyPI, and Homebrew and that published files have valid metadata.
+
+Callers should pin reusable workflows to a full commit SHA. Dependabot can then
+propose reviewed SHA updates without allowing a mutable ref to change CI code
+silently.
+
 ## Contributing
 
 - Open an [issue](https://github.com/rvben/clispec/issues) to discuss changes

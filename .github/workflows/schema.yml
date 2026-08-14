@@ -13,7 +13,7 @@ jobs:
     name: Canonical v0.3 schema
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate JSON Schema document
         run: |
           python -m json.tool docs/schema/v0.3.json >/dev/null
