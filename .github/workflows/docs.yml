@@ -20,7 +20,7 @@ jobs:
 
       # Pinned to an exact release: setup-uv publishes no floating major tag,
       # so `@v10` does not resolve.
-      - uses: astral-sh/setup-uv@v10.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
 
       # Each step is a make target and nothing else, so every failure here
       # reproduces with one command on a laptop.
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
 
       - name: Build documentation
         run: make build
