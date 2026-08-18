@@ -47,6 +47,39 @@ file's hash moves, and the tool that records checksums refuses to re-record a
 frozen entry. Undoing a freeze requires editing the recorded hash by hand, which
 is a visible, reviewable act rather than a side effect of some other change.
 
+## Repository tags are not spec versions
+
+The repository also carries git tags of the form `v0.3.1`. They mark releases of
+the repository, not publications of the spec, and reading one as the other is
+the mistake this section exists to stop.
+
+The first two components name the spec line a release belongs to, so a tag can
+never put a spec version into circulation that the table above does not list.
+The third component counts releases within that line, and it is the only
+component free to move for a change that leaves the spec alone. The normative
+machinery ships from the same `main` as the prose, so a correction to the
+fixture suite or to the reusable workflows is a release of the repository and
+nothing more.
+
+That constraint is the whole point of the scheme. Numbering a workflow change
+`v0.4.0` would announce a version of the spec that nobody has written, and the
+number would be in circulation long before the page meant to define it. Whether
+the spec itself has moved is answered by the table above and by
+`CHECKSUMS.txt`, never by a tag.
+
+Consumers of the reusable workflows in `.github/workflows` pin a full commit SHA
+and name the release beside it:
+
+```yaml
+uses: rvben/clispec/.github/workflows/conformance.yml@<40-char-sha> # v0.3.1
+```
+
+The SHA is what actually runs; the comment says which release that SHA is. A
+bare SHA still runs correctly, but it tells a reader nothing about how far
+behind they have drifted, and an update tool cannot prove which release the old
+SHA was meant to represent, so it has to leave the pin alone. Naming the release
+is what makes the pin maintainable by something other than hand-transcription.
+
 ## Errata
 
 An erratum is a correction to what a frozen version *says*, published here

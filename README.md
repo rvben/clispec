@@ -52,9 +52,19 @@ checks for CLI repositories:
 - `published-artifacts.yml` confirms that the latest GitHub release agrees with
   crates.io, PyPI, and Homebrew and that published files have valid metadata.
 
-Callers should pin reusable workflows to a full commit SHA. Dependabot can then
-propose reviewed SHA updates without allowing a mutable ref to change CI code
-silently.
+Pin them to a full commit SHA and name the release beside it, so a mutable ref
+can never change CI code silently:
+
+```yaml
+uses: rvben/clispec/.github/workflows/conformance.yml@<40-char-sha> # v0.3.1
+```
+
+Both halves earn their place. The SHA is what runs. The comment is what lets an
+update tool prove which release the old SHA stood for and propose the next one;
+without it a bare SHA is unresolvable and stays frozen until someone transcribes
+a new one by hand. Repository tags track the spec line they belong to and are
+not spec publications in their own right, which
+[Versions](https://clispec.dev/versions/) explains.
 
 ## Contributing
 
