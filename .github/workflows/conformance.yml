@@ -50,7 +50,7 @@ jobs:
 
       - name: Install uv
         if: inputs.build-system == 'uv'
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@v10.1.0
 
       - name: Build Rust CLI
         if: inputs.build-system == 'rust'
